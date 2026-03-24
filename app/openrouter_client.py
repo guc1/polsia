@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from urllib.parse import urljoin
 
 import httpx
 
@@ -8,8 +9,28 @@ import httpx
 class OpenRouterClient:
     def __init__(self, timeout: int = 90):
         self.api_key = os.getenv("OPENROUTER_API_KEY", "")
-        self.base_url = "https://openrouter.ai/api/v1"
+        default_base_url = "https://openrouter.ai"
+        configured_base_url = os.getenv("OPENROUTER_BASE_URL", default_base_url).strip()
+        self.base_url = configured_base_url.rstrip("/")
         self.timeout = timeout
+
+    @staticmethod
+    def _extract_error_message(response: httpx.Response) -> str:
+        try:
+            payload = response.json()
+        except ValueError:
+            text = response.text.strip()
+            return text[:400] if text else "No response body"
+
+        if isinstance(payload, dict):
+            err = payload.get("error")
+            if isinstance(err, dict):
+                message = err.get("message") or err.get("metadata")
+                if message:
+                    return str(message)
+            if isinstance(err, str):
+                return err
+        return str(payload)[:400]
 
     async def complete(
         self,
@@ -39,11 +60,19 @@ class OpenRouterClient:
             "max_tokens": max_tokens,
         }
 
-        async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
-            res = await client.post("/chat/completions", headers=headers, json=payload)
-            if res.status_code == 404:
-                # fallback for edge proxy rewrites in some environments
-                res = await client.post("/api/v1/chat/completions", headers=headers, json=payload)
-            res.raise_for_status()
+        if self.base_url.rstrip("/").endswith("/api/v1"):
+            endpoint_path = "chat/completions"
+        else:
+            endpoint_path = "api/v1/chat/completions"
+        endpoint = urljoin(f"{self.base_url}/", endpoint_path)
+
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            res = await client.post(endpoint, headers=headers, json=payload)
+            if res.is_error:
+                reason = self._extract_error_message(res)
+                raise RuntimeError(
+                    f"OpenRouter request failed ({res.status_code}) for model '{model}' at '{endpoint}'. "
+                    f"Reason: {reason}"
+                )
             data = res.json()
             return data["choices"][0]["message"]["content"].strip()
