@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from urllib.parse import urljoin
 
 import httpx
 
@@ -8,7 +9,9 @@ import httpx
 class OpenRouterClient:
     def __init__(self, timeout: int = 90):
         self.api_key = os.getenv("OPENROUTER_API_KEY", "")
-        self.base_url = "https://openrouter.ai/api/v1"
+        default_base_url = "https://openrouter.ai"
+        configured_base_url = os.getenv("OPENROUTER_BASE_URL", default_base_url).strip()
+        self.base_url = configured_base_url.rstrip("/")
         self.timeout = timeout
 
     async def complete(
@@ -39,11 +42,14 @@ class OpenRouterClient:
             "max_tokens": max_tokens,
         }
 
-        async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
-            res = await client.post("/chat/completions", headers=headers, json=payload)
-            if res.status_code == 404:
-                # fallback for edge proxy rewrites in some environments
-                res = await client.post("/api/v1/chat/completions", headers=headers, json=payload)
+        if self.base_url.rstrip("/").endswith("/api/v1"):
+            endpoint_path = "chat/completions"
+        else:
+            endpoint_path = "api/v1/chat/completions"
+        endpoint = urljoin(f"{self.base_url}/", endpoint_path)
+
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            res = await client.post(endpoint, headers=headers, json=payload)
             res.raise_for_status()
             data = res.json()
             return data["choices"][0]["message"]["content"].strip()
