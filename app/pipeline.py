@@ -13,6 +13,8 @@ from app.models import DEFAULT_STAGE_ORDER, Record, RunConfig, RunLogEvent, RunS
 from app.openrouter_client import OpenRouterClient
 from app.storage import append_record
 
+DEFAULT_MODEL = "openai/gpt-4o-mini"
+
 
 class Pipeline:
     def __init__(self, event_cb: Callable[[RunLogEvent], None]):
@@ -54,7 +56,7 @@ class Pipeline:
         model = (
             cfg.agent_model_map.get(agent_key)
             or cfg.model_map.get(stage.value)
-            or "openai/gpt-4.1-mini"
+            or DEFAULT_MODEL
         )
         self._log(run_id, stage.value, agent_key, "prompt", prompt[:600])
         result = await self.client.complete(

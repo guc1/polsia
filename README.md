@@ -28,9 +28,13 @@ Add this to `.env`:
 
 ```bash
 OPENROUTER_API_KEY=your_key_here
+# optional (defaults to https://openrouter.ai)
+# OPENROUTER_BASE_URL=https://openrouter.ai
 ```
 
 Without a key, the app runs in **dry-run mode** and still writes pipeline artifacts.
+
+Recommended starter model in the UI is `openai/gpt-4o-mini`.
 
 ## Output structure
 
