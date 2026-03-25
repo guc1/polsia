@@ -29,6 +29,16 @@ def add_event(event):
 def parse_run_config(payload: dict) -> RunConfig:
     selected_raw = payload.get("selected_stages") or [s.value for s in DEFAULT_STAGE_ORDER]
     selected = [Stage(s) for s in selected_raw]
+    selected_element_types = payload.get("selected_element_types") or [
+        "main_characters",
+        "side_characters",
+        "locations",
+        "situations",
+        "protagonist_emotions",
+        "audience_emotions",
+        "absurd_situations",
+        "narrator_locations",
+    ]
     return RunConfig(
         selected_stages=selected,
         mode=payload.get("mode", "sequential"),
@@ -42,6 +52,9 @@ def parse_run_config(payload: dict) -> RunConfig:
         enable_data_specialist=bool(payload.get("enable_data_specialist", True)),
         enable_format_context=bool(payload.get("enable_format_context", True)),
         output_count=int(payload.get("output_count", 3)),
+        selected_element_types=selected_element_types,
+        existing_elements=payload.get("existing_elements", ""),
+        include_existing_elements=bool(payload.get("include_existing_elements", False)),
     )
 
 

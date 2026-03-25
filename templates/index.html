@@ -164,6 +164,10 @@
 
           <div id="stageGrid" class="stage-grid mb-3"></div>
 
+          <h2 class="mt-2">Element Types <span class="helper">Used in elements stage</span></h2>
+          <p class="section-caption">Select exactly which element categories should be generated.</p>
+          <div id="elementTypeGrid" class="stage-grid mb-2"></div>
+
           <div class="row g-2">
             <div class="col-6">
               <label class="form-label small">Mode</label>
@@ -209,6 +213,13 @@
 
           <label class="form-label small mt-2">Custom instruction</label>
           <textarea id="custom_instruction" rows="3" class="form-control form-control-sm" placeholder="e.g. prioritize school/workplace scenarios"></textarea>
+
+          <div class="form-check mt-2">
+            <input class="form-check-input" id="include_existing_elements" type="checkbox">
+            <label class="form-check-label small" for="include_existing_elements">Include existing elements context</label>
+          </div>
+          <label class="form-label small mt-1">Existing elements (optional JSON or text)</label>
+          <textarea id="existing_elements" rows="4" class="form-control form-control-sm mono" placeholder='{"main_characters":[...],"locations":[...]}'></textarea>
 
           <div class="form-check mt-2">
             <input class="form-check-input" id="enable_data_specialist" type="checkbox" checked>
@@ -284,6 +295,16 @@
 let bootstrapData = null;
 let agents = {};
 let stageOrder = [];
+const elementTypes = [
+  "main_characters",
+  "side_characters",
+  "locations",
+  "situations",
+  "protagonist_emotions",
+  "audience_emotions",
+  "absurd_situations",
+  "narrator_locations"
+];
 
 async function fetchJSON(url, options={}) {
   const r = await fetch(url, options);
@@ -294,12 +315,26 @@ function getSelectedStages() {
   return [...document.querySelectorAll('.stage-check:checked')].map(el => el.value);
 }
 
+function getSelectedElementTypes() {
+  return [...document.querySelectorAll('.element-type-check:checked')].map(el => el.value);
+}
+
 function renderStageGrid(stages) {
   const grid = document.getElementById('stageGrid');
   grid.innerHTML = stages.map(stage => `
     <label class="stage-item">
       <input class="form-check-input stage-check" type="checkbox" value="${stage}" checked>
       <span>${stage}</span>
+    </label>
+  `).join('');
+}
+
+function renderElementTypeGrid(types) {
+  const grid = document.getElementById('elementTypeGrid');
+  grid.innerHTML = types.map(type => `
+    <label class="stage-item">
+      <input class="form-check-input element-type-check" type="checkbox" value="${type}" checked>
+      <span>${type}</span>
     </label>
   `).join('');
 }
@@ -378,6 +413,7 @@ async function init() {
   document.getElementById('agent_model_map').value = JSON.stringify(defaults, null, 2);
 
   renderStageGrid(stageOrder);
+  renderElementTypeGrid(elementTypes);
   renderRuns(bootstrapData.runs || []);
   renderRecords(bootstrapData.records || []);
   renderAgentDropdown();
@@ -397,6 +433,11 @@ document.getElementById('startBtn').onclick = async () => {
   const stages = getSelectedStages();
   if (!stages.length) {
     alert('Select at least one stage.');
+    return;
+  }
+  const selectedElementTypes = getSelectedElementTypes();
+  if (!selectedElementTypes.length) {
+    alert('Select at least one element type.');
     return;
   }
 
@@ -420,6 +461,9 @@ document.getElementById('startBtn').onclick = async () => {
     temperature: Number(document.getElementById('temperature').value),
     max_context_chars: Number(document.getElementById('max_context_chars').value),
     custom_instruction: document.getElementById('custom_instruction').value,
+    selected_element_types: selectedElementTypes,
+    include_existing_elements: document.getElementById('include_existing_elements').checked,
+    existing_elements: document.getElementById('existing_elements').value,
     model_map,
     agent_model_map: agentModelMap,
     enable_data_specialist: document.getElementById('enable_data_specialist').checked,

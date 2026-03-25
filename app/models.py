@@ -44,6 +44,9 @@ class RunConfig:
     enable_data_specialist: bool = True
     enable_format_context: bool = True
     output_count: int = 3
+    selected_element_types: list[str] = field(default_factory=list)
+    existing_elements: str = ""
+    include_existing_elements: bool = False
 
 
 @dataclass

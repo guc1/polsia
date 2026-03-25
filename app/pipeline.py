@@ -22,6 +22,7 @@ class Pipeline:
         self.client = OpenRouterClient()
         self.agents = load_agents()
         self.executor = ThreadPoolExecutor(max_workers=4)
+        self._chat_threads: dict[str, list[dict[str, str]]] = {}
 
     def _log(self, run_id: str, stage: str, agent: str, role: str, message: str) -> None:
         self.event_cb(RunLogEvent(run_id=run_id, stage=stage, agent=agent, role=role, message=message))
@@ -58,13 +59,31 @@ class Pipeline:
             or cfg.model_map.get(stage.value)
             or DEFAULT_MODEL
         )
+        chat_key = f"{run_id}:{stage.value}:{agent_key}:{model}"
+        if chat_key not in self._chat_threads:
+            self._chat_threads[chat_key] = []
+        chat_history = self._chat_threads[chat_key]
+
+        history_excerpt = ""
+        if chat_history:
+            history_excerpt = "Prior thread context:\n" + "\n".join(
+                [f"{m['role'].upper()}: {m['content']}" for m in chat_history[-6:]]
+            )
+
+        user_prompt = prompt[: cfg.max_context_chars]
+        if history_excerpt:
+            user_prompt = f"{history_excerpt}\n\nNew instruction:\n{user_prompt}"
+
+        self._log(run_id, stage.value, agent_key, "meta", f"chat_id={chat_key}")
         self._log(run_id, stage.value, agent_key, "prompt", prompt[:600])
         result = await self.client.complete(
             model=model,
             system_prompt=self._agent_system_prompt(agent_key, f"Stage={stage.value}", stage.value),
-            user_prompt=prompt[: cfg.max_context_chars],
+            user_prompt=user_prompt[: cfg.max_context_chars],
             temperature=cfg.temperature,
         )
+        chat_history.append({"role": "user", "content": prompt[:3000]})
+        chat_history.append({"role": "assistant", "content": result[:3000]})
         self._log(run_id, stage.value, agent_key, "output", result[:1200])
         return result
 
@@ -74,17 +93,72 @@ class Pipeline:
         if cfg.enable_data_specialist:
             agents.append("data_specialist")
 
+        selected_keys = cfg.selected_element_types or [
+            "main_characters",
+            "side_characters",
+            "locations",
+            "situations",
+            "protagonist_emotions",
+            "audience_emotions",
+            "absurd_situations",
+            "narrator_locations",
+        ]
+        existing_block = ""
+        if cfg.include_existing_elements and cfg.existing_elements.strip():
+            existing_block = (
+                "Existing elements that can be reused, improved, or expanded (optional):\n"
+                f"{cfg.existing_elements.strip()}\n\n"
+            )
+
         prompt = (
-            "Generate story elements as JSON with keys: main_characters, side_characters, "
-            "locations, situations, absurd_situations, narrator_locations, felt_emotions, audience_emotions. "
-            f"Generate {cfg.output_count * 2} per key. Custom instruction: {cfg.custom_instruction}."
+            "Generate story elements as strict JSON.\n"
+            f"Only generate these keys: {', '.join(selected_keys)}.\n"
+            f"Generate {cfg.output_count * 2} items per selected key.\n"
+            "Every item must include: id, name, description, retention_reason.\n"
+            f"{existing_block}"
+            f"Custom instruction: {cfg.custom_instruction or 'None'}."
         )
+
         tasks = [self._call_agent(run.run_id, Stage.ELEMENTS, a, prompt, cfg) for a in agents]
         outputs = await asyncio.gather(*tasks)
+        round_one = dict(zip(agents, outputs))
 
-        decider_prompt = "Review all proposals and return final JSON list with top picks for each key.\n\n" + "\n\n".join(outputs)
+        feedback_tasks = []
+        for agent in agents:
+            others = {k: v for k, v in round_one.items() if k != agent}
+            feedback_prompt = (
+                "These are the suggestions and arguments from other agents.\n"
+                "Give one feedback round on all other proposals (exclude your own).\n"
+                "Return strict JSON with:\n"
+                "1) feedback_by_agent: object keyed by agent\n"
+                "2) rankings: object keyed by each selected element key with ranked_ids\n"
+                "3) recommendation_summary.\n\n"
+                f"Selected element keys: {selected_keys}\n"
+                f"Other proposals:\n{json.dumps(others)}"
+            )
+            feedback_tasks.append(self._call_agent(run.run_id, Stage.ELEMENTS, agent, feedback_prompt, cfg))
+        feedback_outputs = await asyncio.gather(*feedback_tasks)
+        round_two_feedback = dict(zip(agents, feedback_outputs))
+
+        decider_context = {
+            "selected_element_keys": selected_keys,
+            "round_1_proposals": round_one,
+            "round_2_feedback_and_rankings": round_two_feedback,
+        }
+        decider_prompt = (
+            "You are the final decider. Use full context from all agents.\n"
+            "Decide final picks and return strict JSON with:\n"
+            "selected_elements (object by element key), decision_reasoning, winning_ids, confidence.\n\n"
+            f"{json.dumps(decider_context)}"
+        )
         decided = await self._call_agent(run.run_id, Stage.ELEMENTS, "decider", decider_prompt, cfg)
-        return {"elements": decided, "source_agents": agents}
+        return {
+            "elements": decided,
+            "source_agents": agents,
+            "selected_element_types": selected_keys,
+            "round_1_proposals": round_one,
+            "round_2_feedback": round_two_feedback,
+        }
 
     async def _stage_simple(self, run: RunState, stage: Stage, instruction: str, context: str) -> dict:
         cfg = run.config
