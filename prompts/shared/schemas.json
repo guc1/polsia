@@ -1,0 +1,14 @@
+{
+  "common_fields": [
+    "agent_name",
+    "stage",
+    "task_type",
+    "status",
+    "items",
+    "reasoning_summary",
+    "used_context_ids",
+    "rejected_context_ids",
+    "confidence",
+    "warnings"
+  ]
+}

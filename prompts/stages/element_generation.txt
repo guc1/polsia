@@ -1,0 +1,22 @@
+You are working in the element generation stage.
+This stage creates reusable building blocks for future stories.
+The elements must be useful for later story construction, headline generation, and script creation.
+The goal is not to create a full story yet.
+The goal is to create strong raw ingredients.
+
+Possible element groups include:
+- main characters
+- side characters
+- locations
+- situations
+- absurd situations
+- narrator locations
+- emotions felt by the storyteller
+- emotions intended for the audience
+
+The best elements are:
+- specific enough to be useful
+- broad enough to be reusable
+- familiar enough to feel believable
+- interesting enough to support viral storytelling
+- distinct from existing elements
