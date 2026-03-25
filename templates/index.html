@@ -103,6 +103,13 @@
       font-size: 0.82rem;
       line-height: 1.4;
     }
+    .log-event { margin-bottom: 10px; white-space: pre-wrap; }
+    .log-event .meta { color: #93c5fd; }
+    .log-event.system_prompt { color: #facc15; }
+    .log-event.user_prompt { color: #22d3ee; }
+    .log-event.output { color: #86efac; }
+    .log-event.warning { color: #fda4af; }
+    .log-event.error { color: #fca5a5; font-weight: 600; }
 
     .records-box {
       border: 1px solid var(--border);
@@ -112,6 +119,30 @@
       overflow: auto;
       padding: 10px;
       font-size: 0.82rem;
+    }
+    .chatbox {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #f8fafc;
+      height: 320px;
+      overflow: auto;
+      padding: 12px;
+      font-size: 0.85rem;
+    }
+    .chat-msg {
+      background: #ffffff;
+      border: 1px solid #dbeafe;
+      border-left: 4px solid #6366f1;
+      border-radius: 10px;
+      padding: 8px 10px;
+      margin-bottom: 10px;
+      white-space: pre-wrap;
+    }
+    .chat-msg .chat-head {
+      font-size: 0.78rem;
+      color: #334155;
+      margin-bottom: 6px;
+      font-weight: 600;
     }
 
     .btn-primary {
@@ -256,7 +287,12 @@
         </div>
 
         <div class="panel">
-          <h2>4) Agent Prompt Editor <span class="helper">Edit and apply</span></h2>
+          <h2>4) Agent Output Chat <span class="helper">Only assistant outputs</span></h2>
+          <div id="outputChat" class="chatbox mono">No output messages yet.</div>
+        </div>
+
+        <div class="panel">
+          <h2>5) Agent Prompt Editor <span class="helper">Edit and apply</span></h2>
           <div class="row g-2">
             <div class="col-12">
               <label class="form-label small">Agent</label>
@@ -364,11 +400,33 @@ function renderRecords(records) {
     .join('\n');
 }
 
+function escapeHtml(text) {
+  return String(text)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;');
+}
+
 function renderAgentDropdown() {
   const sel = document.getElementById('agentSelect');
   const keys = Object.keys(agents);
   sel.innerHTML = keys.length ? keys.map(k => `<option value="${k}">${k}</option>`).join('') : '<option value="">No agents</option>';
   loadAgentIntoEditor();
+}
+
+function renderOutputChat(events) {
+  const chat = document.getElementById('outputChat');
+  const outputEvents = events.filter(e => e.role === 'output');
+  if (!outputEvents.length) {
+    chat.textContent = 'No output messages yet.';
+    return;
+  }
+  chat.innerHTML = outputEvents.map(e => `
+    <div class="chat-msg">
+      <div class="chat-head">${escapeHtml(e.agent)} • ${escapeHtml(e.stage)} • ${escapeHtml(e.ts)}</div>
+      <div>${escapeHtml(e.message)}</div>
+    </div>
+  `).join('');
 }
 
 function loadAgentIntoEditor() {
@@ -398,9 +456,19 @@ async function refreshRuns() {
   document.getElementById('runStatus').textContent = `Status: ${run.run.status}`;
 
   const events = run.events || [];
-  document.getElementById('logs').textContent = events.length
-    ? events.map(e => `[${e.ts}] (${e.stage}) ${e.agent}/${e.role}: ${e.message}`).join('\n\n')
-    : 'No events yet for this run.';
+  if (!events.length) {
+    document.getElementById('logs').textContent = 'No events yet for this run.';
+    document.getElementById('outputChat').textContent = 'No output messages yet.';
+    return;
+  }
+  document.getElementById('logs').innerHTML = events.map(e => {
+    const roleClass = ['system_prompt', 'user_prompt', 'output', 'warning', 'error'].includes(e.role) ? e.role : '';
+    return `<div class="log-event ${roleClass}">
+      <div class="meta">[${escapeHtml(e.ts)}] (${escapeHtml(e.stage)}) ${escapeHtml(e.agent)}/${escapeHtml(e.role)}</div>
+      <div>${escapeHtml(e.message)}</div>
+    </div>`;
+  }).join('');
+  renderOutputChat(events);
 }
 
 async function init() {
