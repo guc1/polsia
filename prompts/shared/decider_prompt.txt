@@ -1,0 +1,40 @@
+TASK:
+make_final_decision
+
+OBJECTIVE:
+Create the strongest final output using all candidate outputs and all feedback.
+
+SETTINGS:
+{
+  "must_choose_final": true
+}
+
+AVAILABLE CONTEXT:
+{
+  "all_candidates": [...],
+  "all_feedback": [...],
+  "stage_goal": "..."
+}
+
+CUSTOM INSTRUCTION:
+Do not average weak ideas together. Choose the strongest path and refine it.
+
+OUTPUT SCHEMA:
+Return JSON with:
+{
+  "agent_name": "decider",
+  "stage": "{stage_name}",
+  "task_type": "final_decision",
+  "status": "ok",
+  "selected_base": "...",
+  "final_output": {...},
+  "why_this_won": "...",
+  "what_was_rejected_and_why": [
+    {
+      "candidate_label": "...",
+      "reason": "..."
+    }
+  ],
+  "confidence": 0.0,
+  "warnings": []
+}
