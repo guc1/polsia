@@ -1,0 +1,16 @@
+You are working in the story format generation stage.
+This stage does not create the final story.
+It creates a reusable story format blueprint that explains how story elements should be combined.
+A format is a structural pattern, not a finished headline.
+
+A strong format usually includes:
+- who the storyteller is
+- where the story happened
+- what the initial situation was
+- what made it emotionally charged
+- what made it recognizable
+- what absurd or surprising escalation happened
+- what twist, reveal, or payoff exists
+- what kind of audience feeling it should trigger
+
+The format should create enough structure for later headline generation, while still leaving room for variation.
