@@ -26,14 +26,16 @@ AGENT_PERSONA_FILES = {
 }
 
 STAGE_CONTEXT_FILES = {
-    Stage.ELEMENTS: "element_generation.txt",
-    Stage.FORMAT_TYPES: "story_format_generation.txt",
-    Stage.HEADLINES: "headline_generation.txt",
-    Stage.HOOK: "hook_generation.txt",
-    Stage.STORY_PLAN: "story_planning.txt",
-    Stage.STORY: "story_writing.txt",
-    Stage.SCRIPT: "short_script_writing.txt",
-    Stage.VIDEO_TEXT: "video_headline_generation.txt",
+    Stage.ELEMENT_GENERATION: "element_generation.txt",
+    Stage.STORY_FORMAT_GENERATION: "story_format_generation.txt",
+    Stage.HEADLINE_GENERATION: "headline_generation.txt",
+    Stage.HOOK_GENERATION: "hook_generation.txt",
+    Stage.STORY_PLANNING: "story_planning.txt",
+    Stage.STORY_WRITING: "story_writing.txt",
+    Stage.SHORT_SCRIPT_WRITING: "short_script_writing.txt",
+    Stage.VIDEO_HEADLINE_GENERATION: "video_headline_generation.txt",
+    Stage.HEADLINE_SELECTION: "headline_generation.txt",
+    Stage.CAPTION_GENERATION: "caption_generation.txt",
 }
 
 

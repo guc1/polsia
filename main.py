@@ -28,7 +28,8 @@ def add_event(event):
 
 def parse_run_config(payload: dict) -> RunConfig:
     selected_raw = payload.get("selected_stages") or [s.value for s in DEFAULT_STAGE_ORDER]
-    selected = [Stage(s) for s in selected_raw]
+    alias = {"elements":"element_generation","format_types":"story_format_generation","headlines":"headline_generation","hook":"hook_generation","story_plan":"story_planning","story":"story_writing","script":"short_script_writing","video_text":"video_headline_generation"}
+    selected = [Stage(alias.get(s, s)) for s in selected_raw]
     selected_element_types = payload.get("selected_element_types") or [
         "main_characters",
         "side_characters",
