@@ -1,0 +1,38 @@
+TASK:
+board_review_headlines
+
+OBJECTIVE:
+Evaluate shortlist headlines and decide PASS or FAIL.
+
+SETTINGS:
+{
+  "minimum_passes_required": 3
+}
+
+AVAILABLE CONTEXT:
+{
+  "shortlist_headlines": [...]
+}
+
+CUSTOM INSTRUCTION:
+Be strict about weak curiosity or weak story promise.
+
+OUTPUT SCHEMA:
+Return JSON with:
+{
+  "agent_name": "...",
+  "stage": "headline_board_review",
+  "task_type": "vote",
+  "status": "ok",
+  "votes": [
+    {
+      "headline_text": "...",
+      "verdict": "PASS|FAIL",
+      "rank": 1,
+      "why": "...",
+      "improvement_if_fail": "..."
+    }
+  ],
+  "confidence": 0.0,
+  "warnings": []
+}
