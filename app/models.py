@@ -8,25 +8,29 @@ from uuid import uuid4
 
 
 class Stage(str, Enum):
-    ELEMENTS = "elements"
-    FORMAT_TYPES = "format_types"
-    HEADLINES = "headlines"
-    HOOK = "hook"
-    STORY_PLAN = "story_plan"
-    STORY = "story"
-    SCRIPT = "script"
-    VIDEO_TEXT = "video_text"
+    ELEMENT_GENERATION = "element_generation"
+    STORY_FORMAT_GENERATION = "story_format_generation"
+    HEADLINE_GENERATION = "headline_generation"
+    HEADLINE_SELECTION = "headline_selection"
+    HOOK_GENERATION = "hook_generation"
+    STORY_PLANNING = "story_planning"
+    STORY_WRITING = "story_writing"
+    SHORT_SCRIPT_WRITING = "short_script_writing"
+    VIDEO_HEADLINE_GENERATION = "video_headline_generation"
+    CAPTION_GENERATION = "caption_generation"
 
 
 DEFAULT_STAGE_ORDER = [
-    Stage.ELEMENTS,
-    Stage.FORMAT_TYPES,
-    Stage.HEADLINES,
-    Stage.HOOK,
-    Stage.STORY_PLAN,
-    Stage.STORY,
-    Stage.SCRIPT,
-    Stage.VIDEO_TEXT,
+    Stage.ELEMENT_GENERATION,
+    Stage.STORY_FORMAT_GENERATION,
+    Stage.HEADLINE_GENERATION,
+    Stage.HEADLINE_SELECTION,
+    Stage.HOOK_GENERATION,
+    Stage.STORY_PLANNING,
+    Stage.STORY_WRITING,
+    Stage.SHORT_SCRIPT_WRITING,
+    Stage.VIDEO_HEADLINE_GENERATION,
+    Stage.CAPTION_GENERATION,
 ]
 
 
