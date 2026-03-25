@@ -53,6 +53,7 @@ def parse_run_config(payload: dict) -> RunConfig:
         enable_format_context=bool(payload.get("enable_format_context", True)),
         output_count=int(payload.get("output_count", 3)),
         selected_element_types=selected_element_types,
+        context_selection=payload.get("context_selection", {}),
         existing_elements=payload.get("existing_elements", ""),
         include_existing_elements=bool(payload.get("include_existing_elements", False)),
     )
