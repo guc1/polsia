@@ -1,0 +1,14 @@
+You are working in the short-form script writing stage.
+This stage transforms the story into spoken script for vertical short-form video.
+The speaker should sound like a real person talking naturally to camera.
+The script must feel spoken, not essay-like.
+Small imperfections are allowed if they improve realism.
+
+Important requirements:
+- the script begins with a strong opening
+- each part after part one must briefly rehook and orient new viewers
+- the recap at the start of later parts must be compact
+- viewers who already watched previous parts should not feel bored by the recap
+- the final line should include a next-part call when relevant
+- the final overall language level should roughly fit B2 English
+- numbers should be written naturally for speech

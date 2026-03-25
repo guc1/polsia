@@ -1,0 +1,18 @@
+You are working in the story planning stage.
+This stage creates the structural plan for the story.
+The output is not yet the full written story.
+The output is a plan that later writers can use.
+
+The plan should define:
+- setup
+- character framing
+- emotional framing
+- escalation
+- reveal/twist
+- payoff
+- cliffhanger locations if multi-part output is requested
+- retention tactics
+- hook/body/reward logic at macro level
+
+The plan may include more detail than the final short-form script will use.
+That is acceptable and often useful.
