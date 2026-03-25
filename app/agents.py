@@ -130,7 +130,7 @@ AGENT_RULES = {
 
 
 STAGE_GUIDANCE = {
-    "elements": {
+    "element_generation": {
         "local_context": (
             "You are in the element creation section. Generate reusable building blocks: main characters, side characters, "
             "story locations, situations, absurd situations, narrator/storyteller locations, protagonist emotions, "
@@ -144,7 +144,7 @@ STAGE_GUIDANCE = {
             "Return structured JSON. Generate at least 2x requested amount during ideation; decider returns requested final size."
         ),
     },
-    "format_types": {
+    "story_format_generation": {
         "local_context": (
             "You are creating story format blueprints (not final stories). Combine elements into repeatable narrative frameworks "
             "including setup, emotional direction, and a twist/finding."
@@ -154,7 +154,7 @@ STAGE_GUIDANCE = {
         ),
         "output_contract": "Return blueprint text + rationale + expected use case.",
     },
-    "headlines": {
+    "headline_generation": {
         "local_context": (
             "You are generating headline candidates from available elements and optional format context. "
             "Headlines must create click curiosity without spoiling full depth."
@@ -167,7 +167,7 @@ STAGE_GUIDANCE = {
             "Include storyteller choice, used context IDs, and rationale per headline. Provide production-ready finalists."
         ),
     },
-    "hook": {
+    "hook_generation": {
         "local_context": (
             "Hook stage creates both: (1) initial hook sentence and (2) expanded hook paragraph. "
             "The hook must trigger curiosity without revealing full twist."
@@ -177,7 +177,7 @@ STAGE_GUIDANCE = {
         ),
         "output_contract": "Return initial_hook + hook_body + reasoning.",
     },
-    "story_plan": {
+    "story_planning": {
         "local_context": (
             "Create a practical planning sheet from headline + hook: setting flow, character development, tension curve, "
             "cliffhanger placements, part boundaries, and reward moments."
@@ -187,7 +187,7 @@ STAGE_GUIDANCE = {
         ),
         "output_contract": "Return structured plan with section objectives and cliffhanger map.",
     },
-    "story": {
+    "story_writing": {
         "local_context": (
             "Write a strong long-form story source text based on the plan. It can be richer than final script but must remain clear, "
             "interesting, and retention-oriented."
@@ -197,7 +197,7 @@ STAGE_GUIDANCE = {
         ),
         "output_contract": "Return final story with optional side notes about key narrative choices.",
     },
-    "script": {
+    "short_script_writing": {
         "local_context": (
             "Transform final story into short-form spoken script by parts. Part one opens with initial hook. "
             "Later parts open with compact recap + renewed hook. Last part should not promise next part."
@@ -210,13 +210,23 @@ STAGE_GUIDANCE = {
             "B2 readability, spoken style, numbers written out in words, clearly labeled parts, final CTA handling."
         ),
     },
-    "video_text": {
+    "video_headline_generation": {
         "local_context": (
             "Generate per-part opening on-screen text and social caption. Captions should increase watch intent using curiosity, "
             "FOMO, and concise readability."
         ),
         "workflow": "Generate options, evaluate trigger strength, finalize one version per part.",
         "output_contract": "Return per-part headline_text + caption text in machine-friendly structure.",
+    },
+    "headline_selection": {
+        "local_context": "Select which approved headline moves into production.",
+        "workflow": "Decider-only selection loop.",
+        "output_contract": "Return selected headline ID(s), rank, and concise reason.",
+    },
+    "caption_generation": {
+        "local_context": "Generate caption options that drive comments and watch intent.",
+        "workflow": "Parallel generate, review, rank, decider select.",
+        "output_contract": "Return selected caption options with style labels and script linkage.",
     },
 }
 

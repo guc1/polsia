@@ -196,7 +196,7 @@
           <div id="stageGrid" class="stage-grid mb-3"></div>
 
           <h2 class="mt-2">Element Types <span class="helper">Used in elements stage</span></h2>
-          <p class="section-caption">Only required when the <code>elements</code> generation stage is selected.</p>
+          <p class="section-caption">Only required when the <code>element_generation</code> generation stage is selected.</p>
           <div id="elementTypeGrid" class="stage-grid mb-2"></div>
 
           <h2 class="mt-3">Context Selection <span class="helper">Per selected generation stage</span></h2>
@@ -580,7 +580,7 @@ document.getElementById('startBtn').onclick = async () => {
     return;
   }
   const selectedElementTypes = getSelectedElementTypes();
-  if (stages.includes('elements') && !selectedElementTypes.length) {
+  if (stages.includes('element_generation') && !selectedElementTypes.length) {
     alert('Select at least one element type when generating elements.');
     return;
   }
