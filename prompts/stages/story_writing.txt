@@ -1,0 +1,6 @@
+You are working in the story writing stage.
+This stage writes the full story based on the selected headline, the final hook, and the final story plan.
+The result should read like a highly engaging story in written form.
+It should be strong enough to perform even as text, before script adaptation.
+The story should preserve retention, emotional movement, escalation, and payoff.
+The output may contain more detail than the final short-form script needs.

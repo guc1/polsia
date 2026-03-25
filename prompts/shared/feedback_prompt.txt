@@ -1,0 +1,50 @@
+TASK:
+give_feedback
+
+OBJECTIVE:
+Evaluate another agent's output and suggest concrete improvements.
+
+SETTINGS:
+{
+  "must_rank": true,
+  "be_direct": true
+}
+
+AVAILABLE CONTEXT:
+{
+  "candidate_output": {...},
+  "stage_goal": "...",
+  "relevant_context": {...}
+}
+
+CUSTOM INSTRUCTION:
+Focus on quality, retention, clarity, originality, and practical usability.
+
+OUTPUT SCHEMA:
+Return JSON with:
+{
+  "agent_name": "...",
+  "stage": "{stage_name}",
+  "task_type": "feedback",
+  "status": "ok",
+  "overall_verdict": "strong|medium|weak",
+  "main_issues": ["...", "..."],
+  "main_strengths": ["...", "..."],
+  "specific_suggestions": [
+    {
+      "target": "...",
+      "issue": "...",
+      "suggestion": "...",
+      "priority": "high|medium|low"
+    }
+  ],
+  "ranking": [
+    {
+      "candidate_label": "...",
+      "rank": 1,
+      "why": "..."
+    }
+  ],
+  "confidence": 0.0,
+  "warnings": []
+}
