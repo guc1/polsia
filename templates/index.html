@@ -103,6 +103,13 @@
       font-size: 0.82rem;
       line-height: 1.4;
     }
+    .log-event { margin-bottom: 10px; white-space: pre-wrap; }
+    .log-event .meta { color: #93c5fd; }
+    .log-event.system_prompt { color: #facc15; }
+    .log-event.user_prompt { color: #22d3ee; }
+    .log-event.output { color: #86efac; }
+    .log-event.warning { color: #fda4af; }
+    .log-event.error { color: #fca5a5; font-weight: 600; }
 
     .records-box {
       border: 1px solid var(--border);
@@ -364,6 +371,13 @@ function renderRecords(records) {
     .join('\n');
 }
 
+function escapeHtml(text) {
+  return String(text)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;');
+}
+
 function renderAgentDropdown() {
   const sel = document.getElementById('agentSelect');
   const keys = Object.keys(agents);
@@ -398,9 +412,17 @@ async function refreshRuns() {
   document.getElementById('runStatus').textContent = `Status: ${run.run.status}`;
 
   const events = run.events || [];
-  document.getElementById('logs').textContent = events.length
-    ? events.map(e => `[${e.ts}] (${e.stage}) ${e.agent}/${e.role}: ${e.message}`).join('\n\n')
-    : 'No events yet for this run.';
+  if (!events.length) {
+    document.getElementById('logs').textContent = 'No events yet for this run.';
+    return;
+  }
+  document.getElementById('logs').innerHTML = events.map(e => {
+    const roleClass = ['system_prompt', 'user_prompt', 'output', 'warning', 'error'].includes(e.role) ? e.role : '';
+    return `<div class="log-event ${roleClass}">
+      <div class="meta">[${escapeHtml(e.ts)}] (${escapeHtml(e.stage)}) ${escapeHtml(e.agent)}/${escapeHtml(e.role)}</div>
+      <div>${escapeHtml(e.message)}</div>
+    </div>`;
+  }).join('');
 }
 
 async function init() {
