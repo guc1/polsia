@@ -45,6 +45,7 @@ class RunConfig:
     enable_format_context: bool = True
     output_count: int = 3
     selected_element_types: list[str] = field(default_factory=list)
+    context_selection: dict[str, dict[str, Any]] = field(default_factory=dict)
     existing_elements: str = ""
     include_existing_elements: bool = False
 

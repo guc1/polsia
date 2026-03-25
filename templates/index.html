@@ -196,8 +196,12 @@
           <div id="stageGrid" class="stage-grid mb-3"></div>
 
           <h2 class="mt-2">Element Types <span class="helper">Used in elements stage</span></h2>
-          <p class="section-caption">Select exactly which element categories should be generated.</p>
+          <p class="section-caption">Only required when the <code>elements</code> generation stage is selected.</p>
           <div id="elementTypeGrid" class="stage-grid mb-2"></div>
+
+          <h2 class="mt-3">Context Selection <span class="helper">Per selected generation stage</span></h2>
+          <p class="section-caption">Choose what to generate (stages above), then optionally choose context sources for each selected stage.</p>
+          <div id="contextStagePanels" class="mb-3"></div>
 
           <div class="row g-2">
             <div class="col-6">
@@ -341,6 +345,14 @@ const elementTypes = [
   "absurd_situations",
   "narrator_locations"
 ];
+const stageContextCatalog = [
+  { key: "existing_elements", label: "Elements", detail: "Element groups from prior or manual sources." },
+  { key: "story_formats", label: "Story formats", detail: "Format blueprints from format stage outputs." },
+  { key: "previous_headlines", label: "Previous headlines", detail: "Headline candidates created in prior runs." },
+  { key: "previous_hooks", label: "Previous hooks", detail: "Hook outputs from prior runs." },
+  { key: "custom_instruction", label: "Custom instruction", detail: "Current run custom instruction text." },
+  { key: "analytics", label: "Data/performance signals", detail: "Data specialist and performance cues." },
+];
 
 async function fetchJSON(url, options={}) {
   const r = await fetch(url, options);
@@ -373,6 +385,67 @@ function renderElementTypeGrid(types) {
       <span>${type}</span>
     </label>
   `).join('');
+}
+
+function buildProvenanceByStage(records) {
+  const grouped = {};
+  records.forEach(record => {
+    grouped[record.stage] = grouped[record.stage] || [];
+    grouped[record.stage].push(record.id);
+  });
+  return grouped;
+}
+
+function renderContextStagePanels(selectedStages, records) {
+  const box = document.getElementById('contextStagePanels');
+  if (!selectedStages.length) {
+    box.innerHTML = '<div class="helper">Select one or more generation stages to configure optional context.</div>';
+    return;
+  }
+  const provenance = buildProvenanceByStage(records || []);
+  box.innerHTML = selectedStages.map(stage => {
+    const provenanceRows = Object.entries(provenance).map(([sourceStage, ids]) => {
+      const preview = ids.slice(0, 4).map(id => id.slice(0, 8)).join(', ');
+      return `<li><strong>${sourceStage}</strong> → ${preview || 'no IDs'}${ids.length > 4 ? ` (+${ids.length - 4})` : ''}</li>`;
+    }).join('') || '<li>No saved context records found yet.</li>';
+    const options = stageContextCatalog.map(source => `
+      <label class="stage-item">
+        <input class="form-check-input context-source-check" type="checkbox" data-stage="${stage}" value="${source.key}">
+        <span><strong>${source.label}</strong><br><small class="helper">${source.detail}</small></span>
+      </label>
+    `).join('');
+    return `
+      <div class="border rounded p-2 mb-2">
+        <div class="mb-2"><strong>Generate:</strong> ${stage}</div>
+        <div class="helper mb-1">Available context sources</div>
+        <div class="stage-grid mb-2">${options}</div>
+        <div class="form-check mb-2">
+          <input class="form-check-input context-standalone-check" id="standalone_${stage}" type="checkbox" data-stage="${stage}">
+          <label class="form-check-label small" for="standalone_${stage}">No context / run standalone</label>
+        </div>
+        <label class="form-label small">Manual context IDs (comma separated)</label>
+        <input class="form-control form-control-sm context-id-input" data-stage="${stage}" placeholder="format_014, headline_032"/>
+        <div class="helper mt-2">Provenance preview (available records)</div>
+        <ul class="small mb-0">${provenanceRows}</ul>
+      </div>
+    `;
+  }).join('');
+}
+
+function getContextSelectionByStage(stages) {
+  const result = {};
+  stages.forEach(stage => {
+    const selectedSources = [...document.querySelectorAll(`.context-source-check[data-stage="${stage}"]:checked`)].map(el => el.value);
+    const standalone = !!document.querySelector(`.context-standalone-check[data-stage="${stage}"]`)?.checked;
+    const manualRaw = document.querySelector(`.context-id-input[data-stage="${stage}"]`)?.value || '';
+    const manualIds = manualRaw.split(',').map(s => s.trim()).filter(Boolean);
+    result[stage] = {
+      include_sources: selectedSources,
+      manual_ids: manualIds,
+      run_standalone: standalone,
+    };
+  });
+  return result;
 }
 
 function renderRuns(runs) {
@@ -482,6 +555,7 @@ async function init() {
 
   renderStageGrid(stageOrder);
   renderElementTypeGrid(elementTypes);
+  renderContextStagePanels(stageOrder, bootstrapData.records || []);
   renderRuns(bootstrapData.runs || []);
   renderRecords(bootstrapData.records || []);
   renderAgentDropdown();
@@ -491,10 +565,12 @@ async function init() {
 
 document.getElementById('selectAllStages').onclick = () => {
   document.querySelectorAll('.stage-check').forEach(el => el.checked = true);
+  renderContextStagePanels(getSelectedStages(), bootstrapData.records || []);
 };
 
 document.getElementById('selectNoneStages').onclick = () => {
   document.querySelectorAll('.stage-check').forEach(el => el.checked = false);
+  renderContextStagePanels(getSelectedStages(), bootstrapData.records || []);
 };
 
 document.getElementById('startBtn').onclick = async () => {
@@ -504,10 +580,11 @@ document.getElementById('startBtn').onclick = async () => {
     return;
   }
   const selectedElementTypes = getSelectedElementTypes();
-  if (!selectedElementTypes.length) {
-    alert('Select at least one element type.');
+  if (stages.includes('elements') && !selectedElementTypes.length) {
+    alert('Select at least one element type when generating elements.');
     return;
   }
+  const contextSelection = getContextSelectionByStage(stages);
 
   const model = document.getElementById('default_model').value;
   const model_map = {};
@@ -530,6 +607,7 @@ document.getElementById('startBtn').onclick = async () => {
     max_context_chars: Number(document.getElementById('max_context_chars').value),
     custom_instruction: document.getElementById('custom_instruction').value,
     selected_element_types: selectedElementTypes,
+    context_selection: contextSelection,
     include_existing_elements: document.getElementById('include_existing_elements').checked,
     existing_elements: document.getElementById('existing_elements').value,
     model_map,
@@ -547,6 +625,12 @@ document.getElementById('startBtn').onclick = async () => {
   alert(`Run started: ${res.run_id}`);
   await refreshRuns();
 };
+
+document.addEventListener('change', (event) => {
+  if (event.target.classList.contains('stage-check')) {
+    renderContextStagePanels(getSelectedStages(), bootstrapData?.records || []);
+  }
+});
 
 document.getElementById('runSelect').onchange = refreshRuns;
 document.getElementById('agentSelect').onchange = loadAgentIntoEditor;
