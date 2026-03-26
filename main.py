@@ -13,7 +13,15 @@ from flask import Flask, jsonify, render_template, request
 from app.agents import load_agents, save_agents
 from app.models import DEFAULT_STAGE_ORDER, RunConfig, RunState, Stage
 from app.pipeline import Pipeline
-from app.storage import load_saved_settings, read_records, save_named_settings
+from app.storage import (
+    delete_csv_row,
+    list_csv_files,
+    load_saved_settings,
+    read_csv_table,
+    read_records,
+    save_named_settings,
+    update_csv_row,
+)
 
 load_dotenv()
 app = Flask(__name__)
@@ -132,6 +140,52 @@ def save_setting(name: str):
     payload = request.json or {}
     save_named_settings(name, payload)
     return jsonify({"ok": True})
+
+
+@app.get("/api/csv/files")
+def get_csv_files():
+    return jsonify({"files": list_csv_files()})
+
+
+@app.get("/api/csv/table")
+def get_csv_table():
+    file_key = request.args.get("file", "")
+    try:
+        table = read_csv_table(file_key)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    return jsonify(table)
+
+
+@app.put("/api/csv/table/row")
+def put_csv_row():
+    payload = request.json or {}
+    file_key = payload.get("file", "")
+    row_index = int(payload.get("row_index", -1))
+    row = payload.get("row", {}) or {}
+    try:
+        update_csv_row(file_key, row_index, row)
+        updated = read_csv_table(file_key)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except IndexError as e:
+        return jsonify({"error": str(e)}), 404
+    return jsonify({"ok": True, **updated})
+
+
+@app.delete("/api/csv/table/row")
+def remove_csv_row():
+    payload = request.json or {}
+    file_key = payload.get("file", "")
+    row_index = int(payload.get("row_index", -1))
+    try:
+        delete_csv_row(file_key, row_index)
+        updated = read_csv_table(file_key)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except IndexError as e:
+        return jsonify({"error": str(e)}), 404
+    return jsonify({"ok": True, **updated})
 
 
 if __name__ == "__main__":
