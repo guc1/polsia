@@ -3,816 +3,241 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Project Viral Studio</title>
+  <title>Stage-first Agentic Studio</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
-    :root {
-      --bg: #f5f7fb;
-      --surface: #ffffff;
-      --surface-2: #f8fafc;
-      --text: #0f172a;
-      --muted: #475569;
-      --border: #e2e8f0;
-      --primary: #4f46e5;
-      --primary-2: #6366f1;
-      --success: #16a34a;
-    }
-
-    body {
-      background: radial-gradient(circle at top right, #eef2ff 0%, #f8fafc 40%, #f5f7fb 100%);
-      color: var(--text);
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-    }
-
-    .app-shell {
-      max-width: 1450px;
-      margin: 24px auto;
-      padding: 0 16px;
-    }
-
-    .topbar {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
-      padding: 16px 20px;
-      margin-bottom: 16px;
-    }
-
-    .topbar h1 { font-size: 1.2rem; margin: 0; }
-    .subtle { color: var(--muted); font-size: 0.9rem; }
-
-    .layout {
-      display: grid;
-      grid-template-columns: 420px 1fr;
-      gap: 16px;
-      align-items: start;
-    }
-
-    .panel {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
-      padding: 16px;
-      margin-bottom: 16px;
-    }
-
-    .panel h2 {
-      font-size: 1rem;
-      margin-bottom: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .section-caption {
-      color: var(--muted);
-      font-size: 0.82rem;
-      margin-top: -4px;
-      margin-bottom: 10px;
-    }
-
-    .stage-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }
-
-    .stage-item {
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 8px 10px;
-      background: var(--surface-2);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 0.92rem;
-    }
-
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; }
-
-    .logbox {
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      background: #0b1220;
-      color: #dbeafe;
-      height: 420px;
-      overflow: auto;
-      padding: 12px;
-      font-size: 0.82rem;
-      line-height: 1.4;
-    }
-    .log-event { margin-bottom: 10px; white-space: pre-wrap; }
-    .log-event .meta { color: #93c5fd; }
-    .log-event.system_prompt { color: #facc15; }
-    .log-event.user_prompt { color: #22d3ee; }
-    .log-event.output { color: #86efac; }
-    .log-event.warning { color: #fda4af; }
-    .log-event.error { color: #fca5a5; font-weight: 600; }
-
-    .records-box {
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      background: var(--surface-2);
-      max-height: 240px;
-      overflow: auto;
-      padding: 10px;
-      font-size: 0.82rem;
-    }
-    .chatbox {
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      background: #f8fafc;
-      height: 320px;
-      overflow: auto;
-      padding: 12px;
-      font-size: 0.85rem;
-    }
-    .chat-msg {
-      background: #ffffff;
-      border: 1px solid #dbeafe;
-      border-left: 4px solid #6366f1;
-      border-radius: 10px;
-      padding: 8px 10px;
-      margin-bottom: 10px;
-      white-space: pre-wrap;
-    }
-    .chat-msg .chat-head {
-      font-size: 0.78rem;
-      color: #334155;
-      margin-bottom: 6px;
-      font-weight: 600;
-    }
-
-    .btn-primary {
-      background: linear-gradient(135deg, var(--primary), var(--primary-2));
-      border: none;
-    }
-
-    .status-pill {
-      border-radius: 999px;
-      padding: 4px 10px;
-      font-size: 0.75rem;
-      background: #e2e8f0;
-      color: #1e293b;
-    }
-
-    .toolbar {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .helper { color: var(--muted); font-size: 0.78rem; }
-    .csv-table-wrap { max-height: 360px; overflow: auto; border: 1px solid var(--border); border-radius: 12px; }
-    .csv-table-wrap table { margin-bottom: 0; font-size: 0.82rem; }
-    .csv-table-wrap th { position: sticky; top: 0; background: #eef2ff; z-index: 1; }
-    .csv-cell-input { min-width: 140px; }
-
-    @media (max-width: 1100px) {
-      .layout { grid-template-columns: 1fr; }
-      .logbox { height: 300px; }
-    }
+    body { background:#f6f8fc; }
+    .shell { max-width: 1350px; margin: 20px auto; padding: 0 12px; }
+    .card-soft { border:1px solid #dbe3ef; border-radius:14px; background:#fff; box-shadow:0 6px 20px rgba(15,23,42,.04); }
+    .stage-grid { display:grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap:12px; }
+    .stage-tile { padding:16px; cursor:pointer; }
+    .panel-title { font-size:.95rem; font-weight:700; margin-bottom:8px; }
+    .logs { height:72vh; overflow:auto; background:#090f1f; color:#dbeafe; border-radius:12px; padding:10px; font-family: ui-monospace, monospace; font-size:.8rem; white-space:pre-wrap; }
+    .chat { height:72vh; overflow:auto; background:#eff6ff; border-radius:12px; padding:12px; }
+    .bubble { background:#fff; border-left:4px solid #6366f1; border:1px solid #c7d2fe; border-radius:10px; padding:10px; margin-bottom:10px; white-space:pre-wrap; }
+    .mono { font-family: ui-monospace, monospace; white-space:pre-wrap; }
+    .hidden { display:none; }
   </style>
 </head>
 <body>
-  <div class="app-shell">
-    <div class="topbar d-flex justify-content-between align-items-center">
-      <div>
-        <h1>Project Viral • Agentic Studio</h1>
-        <div class="subtle">Clean control center for generating story pipelines and editing agent instructions.</div>
-      </div>
-      <span class="status-pill">localhost:4000</span>
-    </div>
-
-    <div class="layout">
-      <div>
-        <div class="panel">
-          <h2>1) Pipeline Setup <span class="helper">Choose stages and settings</span></h2>
-          <p class="section-caption">Tip: select only early stages if you want to generate ideas first, then run writing later.</p>
-
-          <div class="toolbar mb-2">
-            <button id="selectAllStages" class="btn btn-sm btn-outline-secondary">Select all</button>
-            <button id="selectNoneStages" class="btn btn-sm btn-outline-secondary">Clear all</button>
-          </div>
-
-          <div id="stageGrid" class="stage-grid mb-3"></div>
-
-          <h2 class="mt-2">Element Types <span class="helper">Used in elements stage</span></h2>
-          <p class="section-caption">Only required when the <code>element_generation</code> generation stage is selected.</p>
-          <div id="elementTypeGrid" class="stage-grid mb-2"></div>
-
-          <h2 class="mt-3">Context Selection <span class="helper">Per selected generation stage</span></h2>
-          <p class="section-caption">Choose what to generate (stages above), then optionally choose context sources for each selected stage.</p>
-          <div id="contextStagePanels" class="mb-3"></div>
-
-          <div class="row g-2">
-            <div class="col-6">
-              <label class="form-label small">Mode</label>
-              <select id="mode" class="form-select form-select-sm">
-                <option value="sequential">Sequential</option>
-                <option value="parallel">Parallel</option>
-              </select>
-            </div>
-            <div class="col-6">
-              <label class="form-label small">Output count</label>
-              <input id="output_count" type="number" min="1" max="20" class="form-control form-control-sm" value="3"/>
-            </div>
-          </div>
-
-          <div class="row g-2 mt-1">
-            <div class="col-6">
-              <label class="form-label small">Target minutes</label>
-              <input id="target_minutes" type="number" class="form-control form-control-sm" value="2"/>
-            </div>
-            <div class="col-6">
-              <label class="form-label small">Target parts</label>
-              <input id="target_parts" type="number" class="form-control form-control-sm" value="3"/>
-            </div>
-          </div>
-
-          <div class="row g-2 mt-1">
-            <div class="col-6">
-              <label class="form-label small">Temperature</label>
-              <input id="temperature" type="number" step="0.1" class="form-control form-control-sm" value="0.7"/>
-            </div>
-            <div class="col-6">
-              <label class="form-label small">Max context chars</label>
-              <input id="max_context_chars" type="number" class="form-control form-control-sm" value="12000"/>
-            </div>
-          </div>
-
-          <label class="form-label small mt-2">OpenRouter model (applies to selected stages)</label>
-          <input id="default_model" class="form-control form-control-sm" value="openai/gpt-4o-mini"/>
-
-          <label class="form-label small mt-2">Per-agent model overrides (JSON)</label>
-          <textarea id="agent_model_map" rows="5" class="form-control form-control-sm mono" placeholder='{"viral":"openai/gpt-4.1","decider":"anthropic/claude-3.5-sonnet"}'></textarea>
-          <div class="helper mt-1">Optional. If set, agent-specific model overrides stage model.</div>
-
-          <label class="form-label small mt-2">Custom instruction</label>
-          <textarea id="custom_instruction" rows="3" class="form-control form-control-sm" placeholder="e.g. prioritize school/workplace scenarios"></textarea>
-
-          <div class="form-check mt-2">
-            <input class="form-check-input" id="include_existing_elements" type="checkbox">
-            <label class="form-check-label small" for="include_existing_elements">Include existing elements context</label>
-          </div>
-          <label class="form-label small mt-1">Existing elements (optional JSON or text)</label>
-          <textarea id="existing_elements" rows="4" class="form-control form-control-sm mono" placeholder='{"main_characters":[...],"locations":[...]}'></textarea>
-
-          <div class="form-check mt-2">
-            <input class="form-check-input" id="enable_data_specialist" type="checkbox" checked>
-            <label class="form-check-label small" for="enable_data_specialist">Enable data specialist</label>
-          </div>
-          <div class="form-check mb-3">
-            <input class="form-check-input" id="enable_format_context" type="checkbox" checked>
-            <label class="form-check-label small" for="enable_format_context">Enable format context for headlines</label>
-          </div>
-
-          <button id="startBtn" class="btn btn-primary w-100">Start Generation</button>
-        </div>
-      </div>
-
-      <div>
-        <div class="panel">
-          <h2>2) Live Runs <span id="runStatus" class="helper">No run selected</span></h2>
-          <div class="row g-2 mb-2">
-            <div class="col-lg-8">
-              <label class="form-label small">Run</label>
-              <select id="runSelect" class="form-select form-select-sm"></select>
-            </div>
-            <div class="col-lg-4">
-              <label class="form-label small">Auto refresh</label>
-              <div class="form-control form-control-sm">every 3 seconds</div>
-            </div>
-          </div>
-          <div id="logs" class="logbox mono">No events yet.</div>
-        </div>
-
-        <div class="panel">
-          <h2>3) CSV Records <span class="helper">Latest metadata</span></h2>
-          <div id="records" class="records-box mono">No records yet.</div>
-        </div>
-
-        <div class="panel">
-          <h2>4) CSV Table Manager <span class="helper">View, edit, and delete rows</span></h2>
-          <div class="row g-2 mb-2">
-            <div class="col-lg-8">
-              <label class="form-label small">CSV file</label>
-              <select id="csvFileSelect" class="form-select form-select-sm"></select>
-            </div>
-            <div class="col-lg-4 d-grid align-items-end">
-              <button id="refreshCsvBtn" class="btn btn-sm btn-outline-secondary mt-4">Refresh table</button>
-            </div>
-          </div>
-          <div id="csvTableContainer" class="csv-table-wrap p-2">
-            <div class="helper">Select a CSV file to begin.</div>
-          </div>
-        </div>
-
-        <div class="panel">
-          <h2>5) Agent Output Chat <span class="helper">Only assistant outputs</span></h2>
-          <div id="outputChat" class="chatbox mono">No output messages yet.</div>
-        </div>
-
-        <div class="panel">
-          <h2>6) Agent Prompt Editor <span class="helper">Edit and apply</span></h2>
-          <div class="row g-2">
-            <div class="col-12">
-              <label class="form-label small">Agent</label>
-              <select id="agentSelect" class="form-select form-select-sm"></select>
-            </div>
-            <div class="col-lg-6">
-              <label class="form-label small">Persona</label>
-              <textarea id="agentPersona" class="form-control form-control-sm mono" rows="4"></textarea>
-            </div>
-            <div class="col-lg-6">
-              <label class="form-label small">Agent Rule</label>
-              <textarea id="agentRule" class="form-control form-control-sm mono" rows="4"></textarea>
-            </div>
-          </div>
-
-          <label class="form-label small mt-2">Project Context</label>
-          <textarea id="agentProjectContext" class="form-control form-control-sm mono" rows="5"></textarea>
-
-          <label class="form-label small mt-2">Goal</label>
-          <textarea id="agentGoal" class="form-control form-control-sm mono" rows="4"></textarea>
-
-          <label class="form-label small mt-2">Safety Notes</label>
-          <textarea id="agentSafety" class="form-control form-control-sm mono" rows="2"></textarea>
-
-          <label class="form-label small mt-2">Stage Guidance JSON</label>
-          <textarea id="agentStageGuidance" class="form-control form-control-sm mono" rows="9"></textarea>
-          <div class="helper mt-1">If JSON is invalid, save is blocked to avoid corrupting your agent config.</div>
-
-          <button id="saveAgentBtn" class="btn btn-outline-primary mt-3">Apply Agent Changes</button>
-        </div>
-      </div>
-    </div>
+<div class="shell">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">Project Viral • Stage-first Workspace</h4>
+    <button class="btn btn-sm btn-outline-secondary" id="homeBtn">Home</button>
   </div>
 
-<script>
-let bootstrapData = null;
-let agents = {};
-let stageOrder = [];
-let csvFiles = [];
-let currentCsvFile = '';
-let currentCsvTable = { headers: [], rows: [] };
-const elementTypes = [
-  "main_characters",
-  "side_characters",
-  "locations",
-  "situations",
-  "protagonist_emotions",
-  "audience_emotions",
-  "absurd_situations",
-  "narrator_locations"
-];
-const stageContextCatalog = [
-  { key: "existing_elements", label: "Elements", detail: "Element groups from prior or manual sources." },
-  { key: "story_formats", label: "Story formats", detail: "Format blueprints from format stage outputs." },
-  { key: "previous_headlines", label: "Previous headlines", detail: "Headline candidates created in prior runs." },
-  { key: "previous_hooks", label: "Previous hooks", detail: "Hook outputs from prior runs." },
-  { key: "custom_instruction", label: "Custom instruction", detail: "Current run custom instruction text." },
-  { key: "analytics", label: "Data/performance signals", detail: "Data specialist and performance cues." },
-];
+  <section id="homeView" class="card-soft p-3">
+    <div class="mb-2 text-muted">Select a generation part.</div>
+    <div id="homeStageGrid" class="stage-grid"></div>
+  </section>
 
-async function fetchJSON(url, options={}) {
-  const r = await fetch(url, options);
-  return await r.json();
-}
-
-function renderCsvFileSelect() {
-  const sel = document.getElementById('csvFileSelect');
-  if (!csvFiles.length) {
-    sel.innerHTML = '<option value="">No CSV files found</option>';
-    currentCsvFile = '';
-    return;
-  }
-  sel.innerHTML = csvFiles.map(file => `<option value="${file.key}">${file.location}/${file.name}</option>`).join('');
-  if (currentCsvFile && csvFiles.some(f => f.key === currentCsvFile)) {
-    sel.value = currentCsvFile;
-  } else {
-    currentCsvFile = csvFiles[0].key;
-    sel.value = currentCsvFile;
-  }
-}
-
-function renderCsvTable(table) {
-  const container = document.getElementById('csvTableContainer');
-  const headers = table.headers || [];
-  const rows = table.rows || [];
-  if (!headers.length) {
-    container.innerHTML = '<div class="helper p-2">This CSV appears empty or has no headers.</div>';
-    return;
-  }
-  const head = headers.map(h => `<th>${escapeHtml(h)}</th>`).join('');
-  const body = rows.map((row, idx) => {
-    const cells = headers.map(h => `
-      <td>
-        <input class="form-control form-control-sm csv-cell-input" data-row-index="${idx}" data-header="${escapeHtml(h)}" value="${escapeHtml(row[h] ?? '')}">
-      </td>
-    `).join('');
-    return `
-      <tr>
-        <td class="text-muted">${idx + 1}</td>
-        ${cells}
-        <td class="text-nowrap">
-          <button class="btn btn-sm btn-outline-primary csv-save-row-btn" data-row-index="${idx}">Save</button>
-          <button class="btn btn-sm btn-outline-danger csv-delete-row-btn" data-row-index="${idx}">Delete</button>
-        </td>
-      </tr>
-    `;
-  }).join('');
-  container.innerHTML = `
-    <table class="table table-sm table-hover align-middle">
-      <thead>
-        <tr>
-          <th>#</th>
-          ${head}
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>${body || '<tr><td colspan="99" class="text-muted">No rows yet.</td></tr>'}</tbody>
-    </table>
-  `;
-}
-
-async function loadCsvFiles() {
-  const res = await fetchJSON('/api/csv/files');
-  csvFiles = res.files || [];
-  renderCsvFileSelect();
-}
-
-async function loadCsvTable() {
-  if (!currentCsvFile) {
-    renderCsvTable({headers: [], rows: []});
-    return;
-  }
-  const table = await fetchJSON(`/api/csv/table?file=${encodeURIComponent(currentCsvFile)}`);
-  if (table.error) {
-    alert(`CSV read failed: ${table.error}`);
-    return;
-  }
-  currentCsvTable = table;
-  renderCsvTable(table);
-}
-
-async function saveCsvRow(rowIndex) {
-  const row = {};
-  const inputs = [...document.querySelectorAll(`.csv-cell-input[data-row-index="${rowIndex}"]`)];
-  inputs.forEach(input => {
-    row[input.dataset.header] = input.value;
-  });
-
-  const res = await fetchJSON('/api/csv/table/row', {
-    method: 'PUT',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({ file: currentCsvFile, row_index: rowIndex, row })
-  });
-  if (res.error) {
-    alert(`Save failed: ${res.error}`);
-    return;
-  }
-  currentCsvTable = { headers: res.headers || [], rows: res.rows || [] };
-  renderCsvTable(currentCsvTable);
-}
-
-async function deleteCsvRow(rowIndex) {
-  if (!confirm(`Delete row ${rowIndex + 1}? This cannot be undone.`)) return;
-  const res = await fetchJSON('/api/csv/table/row', {
-    method: 'DELETE',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({ file: currentCsvFile, row_index: rowIndex })
-  });
-  if (res.error) {
-    alert(`Delete failed: ${res.error}`);
-    return;
-  }
-  currentCsvTable = { headers: res.headers || [], rows: res.rows || [] };
-  renderCsvTable(currentCsvTable);
-}
-
-function getSelectedStages() {
-  return [...document.querySelectorAll('.stage-check:checked')].map(el => el.value);
-}
-
-function getSelectedElementTypes() {
-  return [...document.querySelectorAll('.element-type-check:checked')].map(el => el.value);
-}
-
-function renderStageGrid(stages) {
-  const grid = document.getElementById('stageGrid');
-  grid.innerHTML = stages.map(stage => `
-    <label class="stage-item">
-      <input class="form-check-input stage-check" type="checkbox" value="${stage}" checked>
-      <span>${stage}</span>
-    </label>
-  `).join('');
-}
-
-function renderElementTypeGrid(types) {
-  const grid = document.getElementById('elementTypeGrid');
-  grid.innerHTML = types.map(type => `
-    <label class="stage-item">
-      <input class="form-check-input element-type-check" type="checkbox" value="${type}" checked>
-      <span>${type}</span>
-    </label>
-  `).join('');
-}
-
-function buildProvenanceByStage(records) {
-  const grouped = {};
-  records.forEach(record => {
-    grouped[record.stage] = grouped[record.stage] || [];
-    grouped[record.stage].push(record.id);
-  });
-  return grouped;
-}
-
-function renderContextStagePanels(selectedStages, records) {
-  const box = document.getElementById('contextStagePanels');
-  if (!selectedStages.length) {
-    box.innerHTML = '<div class="helper">Select one or more generation stages to configure optional context.</div>';
-    return;
-  }
-  const provenance = buildProvenanceByStage(records || []);
-  box.innerHTML = selectedStages.map(stage => {
-    const provenanceRows = Object.entries(provenance).map(([sourceStage, ids]) => {
-      const preview = ids.slice(0, 4).map(id => id.slice(0, 8)).join(', ');
-      return `<li><strong>${sourceStage}</strong> → ${preview || 'no IDs'}${ids.length > 4 ? ` (+${ids.length - 4})` : ''}</li>`;
-    }).join('') || '<li>No saved context records found yet.</li>';
-    const options = stageContextCatalog.map(source => `
-      <label class="stage-item">
-        <input class="form-check-input context-source-check" type="checkbox" data-stage="${stage}" value="${source.key}">
-        <span><strong>${source.label}</strong><br><small class="helper">${source.detail}</small></span>
-      </label>
-    `).join('');
-    return `
-      <div class="border rounded p-2 mb-2">
-        <div class="mb-2"><strong>Generate:</strong> ${stage}</div>
-        <div class="helper mb-1">Available context sources</div>
-        <div class="stage-grid mb-2">${options}</div>
-        <div class="form-check mb-2">
-          <input class="form-check-input context-standalone-check" id="standalone_${stage}" type="checkbox" data-stage="${stage}">
-          <label class="form-check-label small" for="standalone_${stage}">No context / run standalone</label>
-        </div>
-        <label class="form-label small">Manual context IDs (comma separated)</label>
-        <input class="form-control form-control-sm context-id-input" data-stage="${stage}" placeholder="format_014, headline_032"/>
-        <div class="helper mt-2">Provenance preview (available records)</div>
-        <ul class="small mb-0">${provenanceRows}</ul>
+  <section id="stageView" class="hidden">
+    <div class="card-soft p-3 mb-3">
+      <div class="d-flex justify-content-between align-items-center">
+        <h5 id="stageTitle" class="mb-0"></h5>
+        <span class="text-muted" id="stageCsvMeta"></span>
       </div>
-    `;
-  }).join('');
-}
-
-function getContextSelectionByStage(stages) {
-  const result = {};
-  stages.forEach(stage => {
-    const selectedSources = [...document.querySelectorAll(`.context-source-check[data-stage="${stage}"]:checked`)].map(el => el.value);
-    const standalone = !!document.querySelector(`.context-standalone-check[data-stage="${stage}"]`)?.checked;
-    const manualRaw = document.querySelector(`.context-id-input[data-stage="${stage}"]`)?.value || '';
-    const manualIds = manualRaw.split(',').map(s => s.trim()).filter(Boolean);
-    result[stage] = {
-      include_sources: selectedSources,
-      manual_ids: manualIds,
-      run_standalone: standalone,
-    };
-  });
-  return result;
-}
-
-function renderRuns(runs) {
-  const sel = document.getElementById('runSelect');
-  const current = sel.value;
-
-  if (!runs.length) {
-    sel.innerHTML = '<option value="">No runs yet</option>';
-    document.getElementById('runStatus').textContent = 'No run selected';
-    return;
-  }
-
-  sel.innerHTML = runs.map(r => `<option value="${r.run_id}">${r.run_id.slice(0,8)} • ${r.status}</option>`).join('');
-  if (current && runs.some(r => r.run_id === current)) sel.value = current;
-}
-
-function renderRecords(records) {
-  const box = document.getElementById('records');
-  if (!records.length) {
-    box.textContent = 'No records yet.';
-    return;
-  }
-  box.textContent = records
-    .map(r => `${r.created_at} | ${r.stage} | ${r.id} | ${String(r.payload).slice(0, 140)}...`)
-    .join('\n');
-}
-
-function escapeHtml(text) {
-  return String(text)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;');
-}
-
-function renderAgentDropdown() {
-  const sel = document.getElementById('agentSelect');
-  const keys = Object.keys(agents);
-  sel.innerHTML = keys.length ? keys.map(k => `<option value="${k}">${k}</option>`).join('') : '<option value="">No agents</option>';
-  loadAgentIntoEditor();
-}
-
-function renderOutputChat(events) {
-  const chat = document.getElementById('outputChat');
-  const outputEvents = events.filter(e => e.role === 'output');
-  if (!outputEvents.length) {
-    chat.textContent = 'No output messages yet.';
-    return;
-  }
-  chat.innerHTML = outputEvents.map(e => `
-    <div class="chat-msg">
-      <div class="chat-head">${escapeHtml(e.agent)} • ${escapeHtml(e.stage)} • ${escapeHtml(e.ts)}</div>
-      <div>${escapeHtml(e.message)}</div>
     </div>
-  `).join('');
+
+    <div class="row g-3">
+      <div class="col-lg-4">
+        <div class="card-soft p-3 mb-3">
+          <div class="panel-title">A) Agent Panel</div>
+          <div id="agentList" class="mb-2"></div>
+          <button id="addAgentBtn" class="btn btn-sm btn-outline-primary">Add Agent</button>
+        </div>
+
+        <div class="card-soft p-3 mb-3">
+          <div class="panel-title">B) Loop Explanation</div>
+          <div id="loopText" class="mono small"></div>
+        </div>
+
+        <div class="card-soft p-3 mb-3">
+          <div class="panel-title">D) General Settings</div>
+          <label class="form-label small">Model</label><input id="model" class="form-control form-control-sm" value="openai/gpt-4o-mini"/>
+          <div class="row g-2 mt-1">
+            <div class="col-6"><label class="form-label small">Temperature</label><input id="temperature" type="number" step="0.1" class="form-control form-control-sm" value="0.7"/></div>
+            <div class="col-6"><label class="form-label small">Max tokens/chars</label><input id="max_context_chars" type="number" class="form-control form-control-sm" value="12000"/></div>
+          </div>
+          <div class="row g-2 mt-1">
+            <div class="col-6"><label class="form-label small">Mode</label><select id="mode" class="form-select form-select-sm"><option value="sequential">Sequential</option><option value="parallel">Parallel</option></select></div>
+            <div class="col-6"><label class="form-label small">Outputs</label><input id="output_count" type="number" class="form-control form-control-sm" value="3"/></div>
+          </div>
+          <textarea id="custom_instruction" class="form-control form-control-sm mt-2" rows="3" placeholder="Custom instruction"></textarea>
+        </div>
+      </div>
+
+      <div class="col-lg-8">
+        <div class="card-soft p-3 mb-3">
+          <div class="panel-title">C) Prompt Editor</div>
+          <div class="row g-2">
+            <div class="col-6"><label class="small">System</label><textarea id="prompt_system" class="form-control form-control-sm mono" rows="5"></textarea></div>
+            <div class="col-6"><label class="small">Task</label><textarea id="prompt_task" class="form-control form-control-sm mono" rows="5"></textarea></div>
+            <div class="col-6"><label class="small">Feedback</label><textarea id="prompt_feedback" class="form-control form-control-sm mono" rows="5"></textarea></div>
+            <div class="col-6"><label class="small">Decider</label><textarea id="prompt_decider" class="form-control form-control-sm mono" rows="5"></textarea></div>
+            <div class="col-12"><label class="small">Board</label><textarea id="prompt_board" class="form-control form-control-sm mono" rows="4"></textarea></div>
+          </div>
+          <button id="savePromptsBtn" class="btn btn-sm btn-outline-primary mt-2">Save prompts</button>
+        </div>
+
+        <div class="card-soft p-3 mb-3">
+          <div class="panel-title">E) Database Inspection (CSV)</div>
+          <div id="csvBox" class="mono small" style="max-height:220px;overflow:auto;"></div>
+        </div>
+
+        <div class="card-soft p-3 mb-3">
+          <div class="panel-title">F) Context Selection</div>
+          <div id="contextChecks" class="d-flex gap-3 flex-wrap"></div>
+        </div>
+
+        <div class="card-soft p-3">
+          <div class="panel-title">G) Run</div>
+          <button id="runStageBtn" class="btn btn-primary">Run this stage only</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="runView" class="hidden">
+    <div class="card-soft p-3 mb-3 d-flex justify-content-between align-items-center">
+      <h5 class="mb-0" id="runTitle"></h5>
+      <span id="runStatus" class="text-muted"></span>
+    </div>
+    <div class="row g-3">
+      <div class="col-lg-6"><div class="panel-title">Raw Terminal Logs</div><div id="logs" class="logs">No logs yet.</div></div>
+      <div class="col-lg-6"><div class="panel-title">Agent Conversation</div><div id="chat" class="chat"></div></div>
+    </div>
+  </section>
+</div>
+
+<div class="modal fade" id="dbModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Updated DB</h5></div>
+    <div class="modal-body">
+      <p class="small text-muted">Review exactly what will be written.</p>
+      <textarea id="dbRowsEditor" class="form-control mono" rows="18"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline-danger" id="rejectDbBtn">Cancel / Reject</button>
+      <button class="btn btn-outline-primary" id="editSubmitDbBtn">Edit and submit</button>
+      <button class="btn btn-primary" id="confirmDbBtn">Confirm</button>
+    </div>
+  </div></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+let bootstrapData = null, currentStage = null, currentRunId = null, currentPendingRows = [];
+let agents = {};
+const contextSources = ["existing_elements","story_formats","previous_headlines","previous_hooks","custom_instruction","analytics"];
+
+async function j(url,opt={}){ const r = await fetch(url,opt); return r.json(); }
+const $ = (id)=>document.getElementById(id);
+const show = (view)=>["homeView","stageView","runView"].forEach(v=>$(v).classList.toggle('hidden',v!==view));
+const esc = (s)=>String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+
+function renderHome(){
+  $("homeStageGrid").innerHTML = bootstrapData.stage_catalog.map(s=>`<div class="card-soft stage-tile" data-stage="${s.key}"><strong>${s.label}</strong><div class="small text-muted mt-1">${s.key}</div></div>`).join('');
 }
 
-function loadAgentIntoEditor() {
-  const key = document.getElementById('agentSelect').value;
-  const a = agents[key];
-  if (!a) return;
-
-  document.getElementById('agentPersona').value = a.persona || '';
-  document.getElementById('agentProjectContext').value = a.project_context || '';
-  document.getElementById('agentGoal').value = a.goal || '';
-  document.getElementById('agentRule').value = a.agent_rule || '';
-  document.getElementById('agentSafety').value = a.safety_notes || '';
-  document.getElementById('agentStageGuidance').value = JSON.stringify(a.stage_guidance || {}, null, 2);
+function renderAgents(stageMeta){
+  const html = stageMeta.agents.map(a=>`<div class="form-check"><input class="form-check-input agent-toggle" type="checkbox" data-agent="${a}" checked><label class="form-check-label">${a}</label></div>`).join('');
+  $("agentList").innerHTML = html || '<span class="text-muted small">No agents listed.</span>';
 }
 
-async function refreshRuns() {
-  const runs = await fetchJSON('/api/runs');
-  renderRuns(runs);
+async function openStage(stageKey){
+  currentStage = stageKey;
+  const meta = bootstrapData.stage_catalog.find(s=>s.key===stageKey);
+  $("stageTitle").textContent = `${meta.label} Workspace (${meta.key})`;
+  $("stageCsvMeta").textContent = meta.csv_key;
+  $("loopText").textContent = meta.loop_explanation;
+  renderAgents(meta);
+  $("contextChecks").innerHTML = contextSources.map(c=>`<div class="form-check"><input class="form-check-input ctx" type="checkbox" value="${c}"><label class="form-check-label small">${c}</label></div>`).join('');
 
-  const selectedRunId = document.getElementById('runSelect').value;
-  if (!selectedRunId) {
-    document.getElementById('logs').textContent = 'No events yet.';
-    return;
-  }
+  const prompts = await j(`/api/prompts/${stageKey}`);
+  $("prompt_system").value = prompts.system_prompt_template || '';
+  $("prompt_task").value = prompts.task_prompt || '';
+  $("prompt_feedback").value = prompts.feedback_prompt || '';
+  $("prompt_decider").value = prompts.decider_prompt || '';
+  $("prompt_board").value = prompts.board_prompt || '';
 
-  const run = await fetchJSON(`/api/runs/${selectedRunId}`);
-  document.getElementById('runStatus').textContent = `Status: ${run.run.status}`;
-
-  const events = run.events || [];
-  if (!events.length) {
-    document.getElementById('logs').textContent = 'No events yet for this run.';
-    document.getElementById('outputChat').textContent = 'No output messages yet.';
-    return;
-  }
-  document.getElementById('logs').innerHTML = events.map(e => {
-    const roleClass = ['system_prompt', 'user_prompt', 'output', 'warning', 'error'].includes(e.role) ? e.role : '';
-    return `<div class="log-event ${roleClass}">
-      <div class="meta">[${escapeHtml(e.ts)}] (${escapeHtml(e.stage)}) ${escapeHtml(e.agent)}/${escapeHtml(e.role)}</div>
-      <div>${escapeHtml(e.message)}</div>
-    </div>`;
-  }).join('');
-  renderOutputChat(events);
+  const table = await j(`/api/csv/table?file=${encodeURIComponent(meta.csv_key)}`);
+  $("csvBox").textContent = table.error ? table.error : JSON.stringify(table.rows || [], null, 2);
+  show('stageView');
 }
 
-async function init() {
-  bootstrapData = await fetchJSON('/api/bootstrap');
-  agents = bootstrapData.agents || {};
-  stageOrder = bootstrapData.stage_order || [];
-
-  const defaults = {};
-  Object.keys(agents).forEach(k => defaults[k] = "");
-  document.getElementById('agent_model_map').value = JSON.stringify(defaults, null, 2);
-
-  renderStageGrid(stageOrder);
-  renderElementTypeGrid(elementTypes);
-  renderContextStagePanels(stageOrder, bootstrapData.records || []);
-  renderRuns(bootstrapData.runs || []);
-  renderRecords(bootstrapData.records || []);
-  renderAgentDropdown();
-  await loadCsvFiles();
-  await loadCsvTable();
-
-  setInterval(refreshRuns, 3000);
-}
-
-document.getElementById('selectAllStages').onclick = () => {
-  document.querySelectorAll('.stage-check').forEach(el => el.checked = true);
-  renderContextStagePanels(getSelectedStages(), bootstrapData.records || []);
-};
-
-document.getElementById('selectNoneStages').onclick = () => {
-  document.querySelectorAll('.stage-check').forEach(el => el.checked = false);
-  renderContextStagePanels(getSelectedStages(), bootstrapData.records || []);
-};
-
-document.getElementById('startBtn').onclick = async () => {
-  const stages = getSelectedStages();
-  if (!stages.length) {
-    alert('Select at least one stage.');
-    return;
-  }
-  const selectedElementTypes = getSelectedElementTypes();
-  if (stages.includes('element_generation') && !selectedElementTypes.length) {
-    alert('Select at least one element type when generating elements.');
-    return;
-  }
-  const contextSelection = getContextSelectionByStage(stages);
-
-  const model = document.getElementById('default_model').value;
-  const model_map = {};
-  stages.forEach(s => model_map[s] = model);
-  let agentModelMap = {};
-  try {
-    agentModelMap = JSON.parse(document.getElementById('agent_model_map').value || '{}');
-  } catch (e) {
-    alert('Per-agent model JSON is invalid');
-    return;
-  }
-
-  const payload = {
-    selected_stages: stages,
-    mode: document.getElementById('mode').value,
-    output_count: Number(document.getElementById('output_count').value),
-    target_minutes: Number(document.getElementById('target_minutes').value),
-    target_parts: Number(document.getElementById('target_parts').value),
-    temperature: Number(document.getElementById('temperature').value),
-    max_context_chars: Number(document.getElementById('max_context_chars').value),
-    custom_instruction: document.getElementById('custom_instruction').value,
-    selected_element_types: selectedElementTypes,
-    context_selection: contextSelection,
-    include_existing_elements: document.getElementById('include_existing_elements').checked,
-    existing_elements: document.getElementById('existing_elements').value,
-    model_map,
-    agent_model_map: agentModelMap,
-    enable_data_specialist: document.getElementById('enable_data_specialist').checked,
-    enable_format_context: document.getElementById('enable_format_context').checked,
+async function runCurrentStage(){
+  const model_map = {}; model_map[currentStage] = $("model").value;
+  const context_selection = {}; context_selection[currentStage] = {
+    include_sources: [...document.querySelectorAll('.ctx:checked')].map(x=>x.value),
+    manual_ids: [], run_standalone: false,
   };
+  const payload = {
+    selected_stages:[currentStage], mode:$("mode").value, output_count:Number($("output_count").value),
+    temperature:Number($("temperature").value), max_context_chars:Number($("max_context_chars").value),
+    custom_instruction:$("custom_instruction").value, model_map, context_selection,
+    agent_model_map:{}, enable_data_specialist:true, enable_format_context:true
+  };
+  const res = await j('/api/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  currentRunId = res.run_id;
+  $("runTitle").textContent = `Run screen • ${currentStage}`;
+  show('runView');
+  refreshRun();
+}
 
-  const res = await fetchJSON('/api/run', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify(payload)
-  });
+async function refreshRun(){
+  if(!currentRunId) return;
+  const data = await j(`/api/runs/${currentRunId}`);
+  $("runStatus").textContent = data.run.status;
+  const events = data.events || [];
+  $("logs").innerHTML = events.map(e=>`[${esc(e.ts)}] (${esc(e.stage)}) ${esc(e.agent)}/${esc(e.role)}\n${esc(e.message)}\n`).join('\n');
+  const convo = events.filter(e=>['system_prompt','user_prompt','output'].includes(e.role));
+  $("chat").innerHTML = convo.map(e=>`<div class="bubble"><div class="small text-muted">${esc(e.agent)} • ${esc(e.role)}</div>${esc(e.message)}</div>`).join('');
 
-  alert(`Run started: ${res.run_id}`);
-  await refreshRuns();
-};
-
-document.addEventListener('change', (event) => {
-  if (event.target.classList.contains('stage-check')) {
-    renderContextStagePanels(getSelectedStages(), bootstrapData?.records || []);
+  const pending = (data.run.pending_updates || {})[currentStage];
+  if (data.run.status === 'completed' && pending && pending.status === 'pending_confirmation') {
+    currentPendingRows = pending.rows || [];
+    $("dbRowsEditor").value = JSON.stringify(currentPendingRows, null, 2);
+    bootstrap.Modal.getOrCreateInstance($("dbModal")).show();
   }
+  if (data.run.status === 'running') setTimeout(refreshRun, 2500);
+}
+
+async function savePrompts(){
+  await j(`/api/prompts/${currentStage}`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    system_prompt_template: $("prompt_system").value, task_prompt: $("prompt_task").value,
+    feedback_prompt: $("prompt_feedback").value, decider_prompt: $("prompt_decider").value, board_prompt: $("prompt_board").value,
+  })});
+  alert('Prompts saved');
+}
+
+async function submitDb(action){
+  let rows = currentPendingRows;
+  if (action === 'edit_submit') {
+    try { rows = JSON.parse($("dbRowsEditor").value || '[]'); } catch { alert('Invalid JSON edits'); return; }
+  }
+  await j(`/api/runs/${currentRunId}/db-update`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({stage:currentStage, action, rows})});
+  bootstrap.Modal.getOrCreateInstance($("dbModal")).hide();
+  await openStage(currentStage);
+}
+
+async function init(){
+  bootstrapData = await j('/api/bootstrap');
+  agents = bootstrapData.agents || {};
+  renderHome();
+}
+
+document.addEventListener('click', (e)=>{
+  const tile = e.target.closest('.stage-tile');
+  if (tile) openStage(tile.dataset.stage);
 });
-
-document.getElementById('runSelect').onchange = refreshRuns;
-document.getElementById('agentSelect').onchange = loadAgentIntoEditor;
-document.getElementById('csvFileSelect').onchange = async (event) => {
-  currentCsvFile = event.target.value;
-  await loadCsvTable();
-};
-document.getElementById('refreshCsvBtn').onclick = loadCsvTable;
-
-document.addEventListener('click', async (event) => {
-  if (event.target.classList.contains('csv-save-row-btn')) {
-    const rowIndex = Number(event.target.dataset.rowIndex);
-    await saveCsvRow(rowIndex);
-  }
-  if (event.target.classList.contains('csv-delete-row-btn')) {
-    const rowIndex = Number(event.target.dataset.rowIndex);
-    await deleteCsvRow(rowIndex);
-  }
-});
-
-document.getElementById('saveAgentBtn').onclick = async () => {
-  const key = document.getElementById('agentSelect').value;
-  if (!agents[key]) return;
-
-  agents[key].persona = document.getElementById('agentPersona').value;
-  agents[key].project_context = document.getElementById('agentProjectContext').value;
-  agents[key].goal = document.getElementById('agentGoal').value;
-  agents[key].agent_rule = document.getElementById('agentRule').value;
-  agents[key].safety_notes = document.getElementById('agentSafety').value;
-
-  try {
-    agents[key].stage_guidance = JSON.parse(document.getElementById('agentStageGuidance').value || '{}');
-  } catch (e) {
-    alert('Stage Guidance JSON is invalid');
-    return;
-  }
-
-  await fetchJSON('/api/agents', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify(agents)
-  });
-
-  alert('Agent config saved');
-};
-
+$("runStageBtn").onclick = runCurrentStage;
+$("homeBtn").onclick = ()=>show('homeView');
+$("savePromptsBtn").onclick = savePrompts;
+$("confirmDbBtn").onclick = ()=>submitDb('confirm');
+$("editSubmitDbBtn").onclick = ()=>submitDb('edit_submit');
+$("rejectDbBtn").onclick = ()=>submitDb('cancel');
+$("addAgentBtn").onclick = ()=>alert('Use data/agents.json or extend API to define full new agent profile.');
 init();
 </script>
 </body>
