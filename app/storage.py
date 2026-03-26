@@ -4,32 +4,43 @@ import csv
 import json
 from pathlib import Path
 
-from app.config import DATA_DIR, OUTPUT_DIR, RECORDS_FILE, SETTINGS_FILE
+from app.config import DATA_DIR, OUTPUT_DIR, RECORDS_DIR, SETTINGS_FILE
 from app.models import Record
 
 
 RECORD_HEADERS = ["id", "created_at", "stage", "payload", "source_ids"]
 
 
-def ensure_records_file() -> None:
-    if not RECORDS_FILE.exists():
-        with RECORDS_FILE.open("w", newline="", encoding="utf-8") as f:
+def _sanitize_stage(stage: str) -> str:
+    return "".join(ch if ch.isalnum() or ch in {"_", "-"} else "_" for ch in stage).strip("_") or "unknown"
+
+
+def _stage_records_file(stage: str) -> Path:
+    return RECORDS_DIR / f"{_sanitize_stage(stage)}.csv"
+
+
+def _ensure_records_file(path: Path) -> None:
+    if not path.exists():
+        with path.open("w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=RECORD_HEADERS)
             writer.writeheader()
 
 
 def append_record(record: Record) -> None:
-    ensure_records_file()
-    with RECORDS_FILE.open("a", newline="", encoding="utf-8") as f:
+    target = _stage_records_file(record.stage)
+    _ensure_records_file(target)
+    with target.open("a", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=RECORD_HEADERS)
         writer.writerow(record.__dict__)
 
 
 def read_records(limit: int = 500) -> list[dict]:
-    ensure_records_file()
-    with RECORDS_FILE.open("r", newline="", encoding="utf-8") as f:
-        rows = list(csv.DictReader(f))
-    return rows[-limit:][::-1]
+    rows: list[dict] = []
+    for path in sorted(RECORDS_DIR.glob("*.csv")):
+        with path.open("r", newline="", encoding="utf-8") as f:
+            rows.extend(list(csv.DictReader(f)))
+    rows.sort(key=lambda row: row.get("created_at", ""), reverse=True)
+    return rows[:limit]
 
 
 def save_named_settings(name: str, payload: dict) -> None:
@@ -50,11 +61,12 @@ def list_csv_files() -> list[dict]:
     for root in roots:
         if not root.exists():
             continue
-        for csv_path in sorted(root.glob("*.csv")):
+        for csv_path in sorted(root.rglob("*.csv")):
+            relative = csv_path.relative_to(root).as_posix()
             files.append(
                 {
-                    "key": f"{root.name}/{csv_path.name}",
-                    "name": csv_path.name,
+                    "key": f"{root.name}/{relative}",
+                    "name": relative,
                     "location": root.name,
                 }
             )
@@ -66,17 +78,20 @@ def resolve_csv_file(file_key: str) -> Path:
     if not safe_key or "/" not in safe_key:
         raise ValueError("invalid_file_key")
 
-    location, filename = safe_key.split("/", 1)
+    location, relative_path = safe_key.split("/", 1)
     if location not in {"data", "output"}:
         raise ValueError("invalid_location")
-    if not filename.endswith(".csv"):
+    if not relative_path.endswith(".csv"):
         raise ValueError("invalid_extension")
-    if "/" in filename or "\\" in filename:
+    relative = Path(relative_path)
+    if relative.is_absolute() or ".." in relative.parts:
         raise ValueError("invalid_filename")
 
     root = DATA_DIR if location == "data" else OUTPUT_DIR
-    target = root / filename
-    if not target.exists():
+    target = (root / relative).resolve()
+    if root.resolve() not in target.parents and target != root.resolve():
+        raise ValueError("invalid_filename")
+    if not target.exists() or not target.is_file():
         raise ValueError("file_not_found")
     return target
 
