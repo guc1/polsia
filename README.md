@@ -1,14 +1,15 @@
 # Project Viral Agentic Framework
 
-A local Python + Flask app for orchestrating multi-stage agent workflows that generate:
-- Story elements
-- Story format types
+A local Python + Flask app for a **stage-first** multi-agent workflow that generates:
+- Elements
+- Headline Formats
 - Headlines
 - Hooks
 - Story plans
-- Full stories
+- Stories
 - Short scripts
-- Video text assets (opening text + captions)
+- Video headline text
+- Captions
 
 ## Run locally
 
@@ -34,17 +35,43 @@ OPENROUTER_API_KEY=your_key_here
 
 Without a key, the app runs in **dry-run mode** and still writes pipeline artifacts.
 
-Recommended starter model in the UI is `openai/gpt-4o-mini`.
+## New stage-first UX
+
+- **Home screen** lists all stages as clickable cards.
+- Clicking a stage opens a **dedicated stage workspace** with:
+  - agent toggles/inspection,
+  - loop explanation,
+  - prompt editor,
+  - run settings,
+  - context selection,
+  - stage CSV table view.
+- Running from a stage only triggers that stage.
+- After run click, you are moved to a **run screen** with:
+  - left: raw logs,
+  - right: conversation-style full prompt/output view.
+- When run completes, CSV updates are **not** auto-written:
+  - Confirm,
+  - Edit and submit,
+  - Cancel/reject.
+
+## CSV philosophy
+
+The project uses **simple per-stage CSV files** under `data/`.
+
+Example for `element_generation.csv`:
+- `id`
+- `element_type`
+- `name`
+- `description`
+- `reasoning_for_choosing`
+- `created_at`
+
+Other stages follow the same lightweight, readable approach.
 
 ## Output structure
 
-- CSV metadata: `data/records.csv`
+- Stage CSV files: `data/<stage>.csv`
+- Legacy run records: `data/records.csv`
 - Agent configuration: `data/agents.json`
 - Saved UI settings: `data/saved_settings.json`
-- Pipeline output per run: `output/<run_id>/`
-
-## Notes
-
-- You can edit agent personas/system pieces in the UI under **Agent Prompt Editor**.
-- You can set model per stage and optional per-agent model overrides in the UI.
-- You can inspect live event logs per run under **Runs & Live Agent Conversations**.
+- Pipeline output per run: `output/<run_id>/full_output.json`

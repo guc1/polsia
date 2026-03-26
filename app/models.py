@@ -73,6 +73,7 @@ class RunState:
     updated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     outputs: dict[str, Any] = field(default_factory=dict)
     errors: list[str] = field(default_factory=list)
+    pending_updates: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass

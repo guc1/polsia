@@ -5,15 +5,18 @@ import json
 import threading
 from dataclasses import asdict
 from datetime import datetime, timezone
+from pathlib import Path
 from uuid import uuid4
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request
 
 from app.agents import load_agents, save_agents
-from app.models import DEFAULT_STAGE_ORDER, RunConfig, RunState, Stage
-from app.pipeline import Pipeline
+from app.models import DEFAULT_STAGE_ORDER, RunConfig, RunLogEvent, RunState, Stage
+from app.pipeline import LOOP_DEFINITIONS, Pipeline
 from app.storage import (
+    STAGE_CSV_SCHEMAS,
+    append_stage_rows,
     delete_csv_row,
     list_csv_files,
     load_saved_settings,
@@ -28,6 +31,70 @@ app = Flask(__name__)
 
 RUNS: dict[str, RunState] = {}
 RUN_EVENTS: dict[str, list[dict]] = {}
+
+
+PROMPT_STAGE_FILES = {
+    "element_generation": "element_generation.txt",
+    "story_format_generation": "story_format_generation.txt",
+    "headline_generation": "headline_generation.txt",
+    "headline_selection": "headline_generation.txt",
+    "hook_generation": "hook_generation.txt",
+    "story_planning": "story_planning.txt",
+    "story_writing": "story_writing.txt",
+    "short_script_writing": "short_script_writing.txt",
+    "video_headline_generation": "video_headline_generation.txt",
+    "caption_generation": "caption_generation.txt",
+}
+
+
+def prompt_paths_for_stage(stage: str) -> dict[str, Path]:
+    stage_file = PROMPT_STAGE_FILES.get(stage)
+    if not stage_file:
+        raise ValueError("invalid_stage")
+    return {
+        "system_prompt_template": Path("prompts/shared/base_system_prompt.txt"),
+        "task_prompt": Path("prompts/stages") / stage_file,
+        "feedback_prompt": Path("prompts/shared/feedback_prompt.txt"),
+        "decider_prompt": Path("prompts/shared/decider_prompt.txt"),
+        "board_prompt": Path("prompts/shared/board_prompt.txt"),
+    }
+
+
+
+STAGE_LABELS = {
+    "element_generation": "Elements",
+    "story_format_generation": "Headline Format",
+    "headline_generation": "Headline",
+    "headline_selection": "Headline Selection",
+    "hook_generation": "Hook",
+    "story_planning": "Story Planning",
+    "story_writing": "Story Writing",
+    "short_script_writing": "Short Script",
+    "video_headline_generation": "Video Headline",
+    "caption_generation": "Caption",
+}
+
+
+def stage_catalog() -> list[dict]:
+    items = []
+    for stage in DEFAULT_STAGE_ORDER:
+        loop = LOOP_DEFINITIONS[stage]
+        items.append(
+            {
+                "key": stage.value,
+                "label": STAGE_LABELS.get(stage.value, stage.value),
+                "loop_explanation": (
+                    f"Creators: {', '.join(loop.creator_agents) or 'none'} → "
+                    f"Reviewers: {', '.join(loop.reviewer_agents) or 'none'} → "
+                    f"Rewrite: {'yes' if loop.has_rewrite_round else 'no'} → "
+                    f"Decider: {'yes' if loop.has_decider else 'no'}"
+                ),
+                "agents": sorted(set(loop.creator_agents + loop.reviewer_agents + (["decider"] if loop.has_decider else []))),
+                "csv_key": f"data/{stage.value}.csv",
+                "csv_headers": STAGE_CSV_SCHEMAS.get(stage.value, []),
+            }
+        )
+    return items
 
 
 def add_event(event):
@@ -93,6 +160,7 @@ def bootstrap():
             "saved_settings": load_saved_settings(),
             "runs": [asdict(r) for r in RUNS.values()],
             "stage_order": [s.value for s in DEFAULT_STAGE_ORDER],
+            "stage_catalog": stage_catalog(),
         }
     )
 
@@ -186,6 +254,64 @@ def remove_csv_row():
     except IndexError as e:
         return jsonify({"error": str(e)}), 404
     return jsonify({"ok": True, **updated})
+
+
+@app.get("/api/prompts/<stage>")
+def get_stage_prompts(stage: str):
+    try:
+        prompt_files = prompt_paths_for_stage(stage)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+    payload = {}
+    for key, rel_path in prompt_files.items():
+        full = Path(app.root_path).parent / rel_path
+        payload[key] = full.read_text(encoding="utf-8") if full.exists() else ""
+    return jsonify(payload)
+
+
+@app.post("/api/prompts/<stage>")
+def save_stage_prompts(stage: str):
+    body = request.json or {}
+    try:
+        prompt_files = prompt_paths_for_stage(stage)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+    for key, rel_path in prompt_files.items():
+        if key not in body:
+            continue
+        full = Path(app.root_path).parent / rel_path
+        full.write_text(str(body[key]), encoding="utf-8")
+    return jsonify({"ok": True})
+
+
+@app.post("/api/runs/<run_id>/db-update")
+def db_update(run_id: str):
+    payload = request.json or {}
+    stage = payload.get("stage", "")
+    action = payload.get("action", "confirm")
+    rows = payload.get("rows", []) or []
+
+    run = RUNS.get(run_id)
+    if not run:
+        return jsonify({"error": "not_found"}), 404
+    if stage not in run.pending_updates:
+        return jsonify({"error": "stage_not_pending"}), 400
+
+    if action in {"confirm", "edit_submit"}:
+        append_stage_rows(stage, rows)
+        run.pending_updates[stage]["status"] = "saved"
+        run.pending_updates[stage]["rows"] = rows
+        add_event(RunLogEvent(run_id=run_id, stage=stage, agent="storage", role="save_update", message=f"saved rows={len(rows)} to data/{stage}.csv"))
+        return jsonify({"ok": True, "status": "saved"})
+
+    if action == "cancel":
+        run.pending_updates[stage]["status"] = "rejected"
+        add_event(RunLogEvent(run_id=run_id, stage=stage, agent="storage", role="save_update", message="pending update rejected"))
+        return jsonify({"ok": True, "status": "rejected"})
+
+    return jsonify({"error": "invalid_action"}), 400
 
 
 if __name__ == "__main__":
