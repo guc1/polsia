@@ -165,6 +165,10 @@
     }
 
     .helper { color: var(--muted); font-size: 0.78rem; }
+    .csv-table-wrap { max-height: 360px; overflow: auto; border: 1px solid var(--border); border-radius: 12px; }
+    .csv-table-wrap table { margin-bottom: 0; font-size: 0.82rem; }
+    .csv-table-wrap th { position: sticky; top: 0; background: #eef2ff; z-index: 1; }
+    .csv-cell-input { min-width: 140px; }
 
     @media (max-width: 1100px) {
       .layout { grid-template-columns: 1fr; }
@@ -291,12 +295,28 @@
         </div>
 
         <div class="panel">
-          <h2>4) Agent Output Chat <span class="helper">Only assistant outputs</span></h2>
+          <h2>4) CSV Table Manager <span class="helper">View, edit, and delete rows</span></h2>
+          <div class="row g-2 mb-2">
+            <div class="col-lg-8">
+              <label class="form-label small">CSV file</label>
+              <select id="csvFileSelect" class="form-select form-select-sm"></select>
+            </div>
+            <div class="col-lg-4 d-grid align-items-end">
+              <button id="refreshCsvBtn" class="btn btn-sm btn-outline-secondary mt-4">Refresh table</button>
+            </div>
+          </div>
+          <div id="csvTableContainer" class="csv-table-wrap p-2">
+            <div class="helper">Select a CSV file to begin.</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>5) Agent Output Chat <span class="helper">Only assistant outputs</span></h2>
           <div id="outputChat" class="chatbox mono">No output messages yet.</div>
         </div>
 
         <div class="panel">
-          <h2>5) Agent Prompt Editor <span class="helper">Edit and apply</span></h2>
+          <h2>6) Agent Prompt Editor <span class="helper">Edit and apply</span></h2>
           <div class="row g-2">
             <div class="col-12">
               <label class="form-label small">Agent</label>
@@ -335,6 +355,9 @@
 let bootstrapData = null;
 let agents = {};
 let stageOrder = [];
+let csvFiles = [];
+let currentCsvFile = '';
+let currentCsvTable = { headers: [], rows: [] };
 const elementTypes = [
   "main_characters",
   "side_characters",
@@ -357,6 +380,117 @@ const stageContextCatalog = [
 async function fetchJSON(url, options={}) {
   const r = await fetch(url, options);
   return await r.json();
+}
+
+function renderCsvFileSelect() {
+  const sel = document.getElementById('csvFileSelect');
+  if (!csvFiles.length) {
+    sel.innerHTML = '<option value="">No CSV files found</option>';
+    currentCsvFile = '';
+    return;
+  }
+  sel.innerHTML = csvFiles.map(file => `<option value="${file.key}">${file.location}/${file.name}</option>`).join('');
+  if (currentCsvFile && csvFiles.some(f => f.key === currentCsvFile)) {
+    sel.value = currentCsvFile;
+  } else {
+    currentCsvFile = csvFiles[0].key;
+    sel.value = currentCsvFile;
+  }
+}
+
+function renderCsvTable(table) {
+  const container = document.getElementById('csvTableContainer');
+  const headers = table.headers || [];
+  const rows = table.rows || [];
+  if (!headers.length) {
+    container.innerHTML = '<div class="helper p-2">This CSV appears empty or has no headers.</div>';
+    return;
+  }
+  const head = headers.map(h => `<th>${escapeHtml(h)}</th>`).join('');
+  const body = rows.map((row, idx) => {
+    const cells = headers.map(h => `
+      <td>
+        <input class="form-control form-control-sm csv-cell-input" data-row-index="${idx}" data-header="${escapeHtml(h)}" value="${escapeHtml(row[h] ?? '')}">
+      </td>
+    `).join('');
+    return `
+      <tr>
+        <td class="text-muted">${idx + 1}</td>
+        ${cells}
+        <td class="text-nowrap">
+          <button class="btn btn-sm btn-outline-primary csv-save-row-btn" data-row-index="${idx}">Save</button>
+          <button class="btn btn-sm btn-outline-danger csv-delete-row-btn" data-row-index="${idx}">Delete</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+  container.innerHTML = `
+    <table class="table table-sm table-hover align-middle">
+      <thead>
+        <tr>
+          <th>#</th>
+          ${head}
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>${body || '<tr><td colspan="99" class="text-muted">No rows yet.</td></tr>'}</tbody>
+    </table>
+  `;
+}
+
+async function loadCsvFiles() {
+  const res = await fetchJSON('/api/csv/files');
+  csvFiles = res.files || [];
+  renderCsvFileSelect();
+}
+
+async function loadCsvTable() {
+  if (!currentCsvFile) {
+    renderCsvTable({headers: [], rows: []});
+    return;
+  }
+  const table = await fetchJSON(`/api/csv/table?file=${encodeURIComponent(currentCsvFile)}`);
+  if (table.error) {
+    alert(`CSV read failed: ${table.error}`);
+    return;
+  }
+  currentCsvTable = table;
+  renderCsvTable(table);
+}
+
+async function saveCsvRow(rowIndex) {
+  const row = {};
+  const inputs = [...document.querySelectorAll(`.csv-cell-input[data-row-index="${rowIndex}"]`)];
+  inputs.forEach(input => {
+    row[input.dataset.header] = input.value;
+  });
+
+  const res = await fetchJSON('/api/csv/table/row', {
+    method: 'PUT',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ file: currentCsvFile, row_index: rowIndex, row })
+  });
+  if (res.error) {
+    alert(`Save failed: ${res.error}`);
+    return;
+  }
+  currentCsvTable = { headers: res.headers || [], rows: res.rows || [] };
+  renderCsvTable(currentCsvTable);
+}
+
+async function deleteCsvRow(rowIndex) {
+  if (!confirm(`Delete row ${rowIndex + 1}? This cannot be undone.`)) return;
+  const res = await fetchJSON('/api/csv/table/row', {
+    method: 'DELETE',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ file: currentCsvFile, row_index: rowIndex })
+  });
+  if (res.error) {
+    alert(`Delete failed: ${res.error}`);
+    return;
+  }
+  currentCsvTable = { headers: res.headers || [], rows: res.rows || [] };
+  renderCsvTable(currentCsvTable);
 }
 
 function getSelectedStages() {
@@ -559,6 +693,8 @@ async function init() {
   renderRuns(bootstrapData.runs || []);
   renderRecords(bootstrapData.records || []);
   renderAgentDropdown();
+  await loadCsvFiles();
+  await loadCsvTable();
 
   setInterval(refreshRuns, 3000);
 }
@@ -634,6 +770,22 @@ document.addEventListener('change', (event) => {
 
 document.getElementById('runSelect').onchange = refreshRuns;
 document.getElementById('agentSelect').onchange = loadAgentIntoEditor;
+document.getElementById('csvFileSelect').onchange = async (event) => {
+  currentCsvFile = event.target.value;
+  await loadCsvTable();
+};
+document.getElementById('refreshCsvBtn').onclick = loadCsvTable;
+
+document.addEventListener('click', async (event) => {
+  if (event.target.classList.contains('csv-save-row-btn')) {
+    const rowIndex = Number(event.target.dataset.rowIndex);
+    await saveCsvRow(rowIndex);
+  }
+  if (event.target.classList.contains('csv-delete-row-btn')) {
+    const rowIndex = Number(event.target.dataset.rowIndex);
+    await deleteCsvRow(rowIndex);
+  }
+});
 
 document.getElementById('saveAgentBtn').onclick = async () => {
   const key = document.getElementById('agentSelect').value;
