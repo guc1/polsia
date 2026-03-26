@@ -290,12 +290,7 @@
         </div>
 
         <div class="panel">
-          <h2>3) CSV Records <span class="helper">Latest metadata</span></h2>
-          <div id="records" class="records-box mono">No records yet.</div>
-        </div>
-
-        <div class="panel">
-          <h2>4) CSV Table Manager <span class="helper">View, edit, and delete rows</span></h2>
+          <h2>3) CSV Table Manager <span class="helper">View, edit, and delete rows</span></h2>
           <div class="row g-2 mb-2">
             <div class="col-lg-8">
               <label class="form-label small">CSV file</label>
@@ -311,12 +306,12 @@
         </div>
 
         <div class="panel">
-          <h2>5) Agent Output Chat <span class="helper">Only assistant outputs</span></h2>
+          <h2>4) Agent Output Chat <span class="helper">Only assistant outputs</span></h2>
           <div id="outputChat" class="chatbox mono">No output messages yet.</div>
         </div>
 
         <div class="panel">
-          <h2>6) Agent Prompt Editor <span class="helper">Edit and apply</span></h2>
+          <h2>5) Agent Prompt Editor <span class="helper">Edit and apply</span></h2>
           <div class="row g-2">
             <div class="col-12">
               <label class="form-label small">Agent</label>
@@ -596,17 +591,6 @@ function renderRuns(runs) {
   if (current && runs.some(r => r.run_id === current)) sel.value = current;
 }
 
-function renderRecords(records) {
-  const box = document.getElementById('records');
-  if (!records.length) {
-    box.textContent = 'No records yet.';
-    return;
-  }
-  box.textContent = records
-    .map(r => `${r.created_at} | ${r.stage} | ${r.id} | ${String(r.payload).slice(0, 140)}...`)
-    .join('\n');
-}
-
 function escapeHtml(text) {
   return String(text)
     .replaceAll('&', '&amp;')
@@ -691,7 +675,6 @@ async function init() {
   renderElementTypeGrid(elementTypes);
   renderContextStagePanels(stageOrder, bootstrapData.records || []);
   renderRuns(bootstrapData.runs || []);
-  renderRecords(bootstrapData.records || []);
   renderAgentDropdown();
   await loadCsvFiles();
   await loadCsvTable();

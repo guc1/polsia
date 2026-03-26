@@ -372,7 +372,7 @@ class Pipeline:
             for stage in run.config.selected_stages:
                 out = await self._execute_stage(run, stage, aggregate_context)
                 run.outputs[stage.value] = out
-                append_record(Record.new(stage.value, json.dumps(out)[:7000]))
+                append_record(Record.new(stage.value, json.dumps(out)))
                 aggregate_context[stage.value] = out
 
             run_dir = OUTPUT_DIR / run.run_id
