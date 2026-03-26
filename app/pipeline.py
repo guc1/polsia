@@ -4,6 +4,7 @@ import asyncio
 import json
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Callable
 
 from app.agents import load_agents
@@ -11,7 +12,7 @@ from app.config import OUTPUT_DIR
 from app.models import Record, RunConfig, RunLogEvent, RunState, Stage
 from app.openrouter_client import OpenRouterClient
 from app.prompt_builder import PromptBuilder, validate_json_response
-from app.storage import append_record
+from app.storage import append_record, append_run_log, persist_stage_output
 
 DEFAULT_MODEL = "openai/gpt-4o-mini"
 
@@ -365,23 +366,101 @@ class Pipeline:
             return await self._generate_review_rewrite_review_decide(run, stage, context)
         raise ValueError(f"Unsupported workflow type: {loop.workflow_type}")
 
+    async def _summarize_for_storage(self, run: RunState, stage: Stage, stage_output: dict) -> tuple[str, str]:
+        prompt = self._build_prompt(
+            "storage_summary",
+            "Summarize this stage output for CSV storage.",
+            {"stage_output": stage_output},
+            {"summary": "", "notes": "", "quality_score": ""},
+            run.config.custom_instruction or "",
+        )
+        try:
+            summary_payload = await self._call_agent(run.run_id, stage, "data_archivist", prompt, run.config)
+            summary = str(summary_payload.get("summary", ""))[:600]
+            notes = str(summary_payload.get("notes", ""))[:600]
+            if summary:
+                return summary, notes
+        except Exception:
+            pass
+        fallback = json.dumps(stage_output.get("final_decider_output", stage_output), ensure_ascii=False)[:600]
+        return fallback, "fallback_summary"
+
     async def execute(self, run: RunState) -> RunState:
         run.status = "running"
         aggregate_context: dict = {}
+        append_run_log(
+            {
+                "run_id": run.run_id,
+                "started_at": run.created_at,
+                "finished_at": "",
+                "run_mode": run.config.mode,
+                "selected_stages": json.dumps([s.value for s in run.config.selected_stages]),
+                "included_context_sources": json.dumps(run.config.context_selection),
+                "custom_instruction": run.config.custom_instruction,
+                "status": "running",
+                "error_message": "",
+                "total_items_generated": 0,
+                "total_tokens_if_available": "",
+                "notes": "",
+            }
+        )
         try:
+            total_items_generated = 0
             for stage in run.config.selected_stages:
                 out = await self._execute_stage(run, stage, aggregate_context)
                 run.outputs[stage.value] = out
-                append_record(Record.new(stage.value, json.dumps(out)[:7000]))
+                append_record(Record.new(stage.value, json.dumps(out)))
+                summary, summary_notes = await self._summarize_for_storage(run, stage, out)
+                persist_stage_output(
+                    run_id=run.run_id,
+                    stage_name=stage.value,
+                    output=out,
+                    custom_instruction=run.config.custom_instruction,
+                    summary=summary,
+                    summary_notes=summary_notes,
+                )
+                total_items_generated += 1
                 aggregate_context[stage.value] = out
 
             run_dir = OUTPUT_DIR / run.run_id
             run_dir.mkdir(parents=True, exist_ok=True)
             (run_dir / "full_output.json").write_text(json.dumps(run.outputs, indent=2))
             run.status = "completed"
+            append_run_log(
+                {
+                    "run_id": run.run_id,
+                    "started_at": run.created_at,
+                    "finished_at": datetime.now(timezone.utc).isoformat(),
+                    "run_mode": run.config.mode,
+                    "selected_stages": json.dumps([s.value for s in run.config.selected_stages]),
+                    "included_context_sources": json.dumps(run.config.context_selection),
+                    "custom_instruction": run.config.custom_instruction,
+                    "status": "completed",
+                    "error_message": "",
+                    "total_items_generated": total_items_generated,
+                    "total_tokens_if_available": "",
+                    "notes": "",
+                }
+            )
             return run
         except Exception as exc:  # pragma: no cover
             run.status = "failed"
             run.errors.append(str(exc))
             self._log(run.run_id, "system", "system", "error", str(exc))
+            append_run_log(
+                {
+                    "run_id": run.run_id,
+                    "started_at": run.created_at,
+                    "finished_at": datetime.now(timezone.utc).isoformat(),
+                    "run_mode": run.config.mode,
+                    "selected_stages": json.dumps([s.value for s in run.config.selected_stages]),
+                    "included_context_sources": json.dumps(run.config.context_selection),
+                    "custom_instruction": run.config.custom_instruction,
+                    "status": "failed",
+                    "error_message": str(exc),
+                    "total_items_generated": len(run.outputs),
+                    "total_tokens_if_available": "",
+                    "notes": "",
+                }
+            )
             return run

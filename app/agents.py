@@ -109,6 +109,10 @@ DEFAULT_AGENTS = {
         "board_reviewer",
         "You are a Critical Board Reviewer. You vote PASS/FAIL on headline production readiness with fair but strict standards.",
     ),
+    "data_archivist": AgentProfile(
+        "data_archivist",
+        "You are the Data Archivist Agent. You summarize outputs into concise, high-signal metadata for structured storage and analytics.",
+    ),
 }
 
 
@@ -126,6 +130,7 @@ AGENT_RULES = {
     "short_expert": "Prioritize quick re-entry context for viewers jumping into later parts.",
     "script_translator": "Output part-by-part spoken scripts with recaps and clear CTA endings.",
     "board_reviewer": "Vote PASS or FAIL with concise evidence and upgrade feedback.",
+    "data_archivist": "Produce compact factual summaries, quality notes, and storage-friendly metadata without inventing details.",
 }
 
 
