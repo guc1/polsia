@@ -5,7 +5,8 @@ DATA_DIR = ROOT / "data"
 OUTPUT_DIR = ROOT / "output"
 AGENTS_FILE = DATA_DIR / "agents.json"
 SETTINGS_FILE = DATA_DIR / "saved_settings.json"
-RECORDS_FILE = DATA_DIR / "records.csv"
+RECORDS_DIR = DATA_DIR / "records"
 
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+RECORDS_DIR.mkdir(parents=True, exist_ok=True)
