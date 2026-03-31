@@ -1,95 +1,186 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any
-from uuid import uuid4
+
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
-class Stage(str, Enum):
-    ELEMENT_GENERATION = "element_generation"
-    STORY_FORMAT_GENERATION = "story_format_generation"
-    HEADLINE_GENERATION = "headline_generation"
-    HEADLINE_SELECTION = "headline_selection"
-    HOOK_GENERATION = "hook_generation"
-    STORY_PLANNING = "story_planning"
-    STORY_WRITING = "story_writing"
-    SHORT_SCRIPT_WRITING = "short_script_writing"
-    VIDEO_HEADLINE_GENERATION = "video_headline_generation"
-    CAPTION_GENERATION = "caption_generation"
+def utc_now() -> datetime:
+    return datetime.now(timezone.utc)
 
 
-DEFAULT_STAGE_ORDER = [
-    Stage.ELEMENT_GENERATION,
-    Stage.STORY_FORMAT_GENERATION,
-    Stage.HEADLINE_GENERATION,
-    Stage.HEADLINE_SELECTION,
-    Stage.HOOK_GENERATION,
-    Stage.STORY_PLANNING,
-    Stage.STORY_WRITING,
-    Stage.SHORT_SCRIPT_WRITING,
-    Stage.VIDEO_HEADLINE_GENERATION,
-    Stage.CAPTION_GENERATION,
-]
+class Base(DeclarativeBase):
+    pass
 
 
-@dataclass
-class RunConfig:
-    selected_stages: list[Stage]
-    mode: str = "sequential"
-    model_map: dict[str, str] = field(default_factory=dict)
-    agent_model_map: dict[str, str] = field(default_factory=dict)
-    temperature: float = 0.7
-    max_context_chars: int = 12000
-    target_minutes: int = 2
-    target_parts: int = 3
-    custom_instruction: str = ""
-    enable_data_specialist: bool = True
-    enable_format_context: bool = True
-    output_count: int = 3
-    selected_element_types: list[str] = field(default_factory=list)
-    context_selection: dict[str, dict[str, Any]] = field(default_factory=dict)
-    existing_elements: str = ""
-    include_existing_elements: bool = False
+class StageKey(str, Enum):
+    ELEMENTS = "elements"
+    HEADLINE_FORMATS = "headline_formats"
+    HEADLINES = "headlines"
+    STORY_STRUCTURE = "story_structure"
+    HOOK = "hook"
+    STORY = "story"
+    SCRIPT = "script"
+    PACKAGE = "title_description_package"
 
 
-@dataclass
-class RunLogEvent:
-    run_id: str
-    stage: str
-    agent: str
-    role: str
-    message: str
-    ts: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+PART_A_STAGES = [StageKey.ELEMENTS, StageKey.HEADLINE_FORMATS, StageKey.HEADLINES]
 
 
-@dataclass
-class RunState:
-    run_id: str
-    config: RunConfig
-    status: str = "queued"
-    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    updated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    outputs: dict[str, Any] = field(default_factory=dict)
-    errors: list[str] = field(default_factory=list)
-    pending_updates: dict[str, Any] = field(default_factory=dict)
+class StageDefinition(Base):
+    __tablename__ = "stage_definitions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    key: Mapped[str] = mapped_column(String(80), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(120))
+    part: Mapped[str] = mapped_column(String(32), default="A")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    description: Mapped[str] = mapped_column(Text, default="")
 
 
-@dataclass
-class Record:
-    id: str
-    created_at: str
-    stage: str
-    payload: str
-    source_ids: str = ""
+class Persona(Base):
+    __tablename__ = "personas"
 
-    @staticmethod
-    def new(stage: str, payload: str, source_ids: str = "") -> "Record":
-        return Record(
-            id=str(uuid4()),
-            created_at=datetime.now(timezone.utc).isoformat(),
-            stage=stage,
-            payload=payload,
-            source_ids=source_ids,
-        )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(120), unique=True)
+    description: Mapped[str] = mapped_column(Text, default="")
+    persona_text: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+
+
+class Agent(Base):
+    __tablename__ = "agents"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(120), unique=True)
+    role: Mapped[str] = mapped_column(String(60), default="creator")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    model: Mapped[str] = mapped_column(String(120), default="openai/gpt-4o-mini")
+    override_prompt: Mapped[str] = mapped_column(Text, default="")
+    persona_id: Mapped[int | None] = mapped_column(ForeignKey("personas.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+
+
+class PromptBlock(Base):
+    __tablename__ = "prompt_blocks"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(120))
+    description_for_agent: Mapped[str] = mapped_column(Text, default="")
+    prompt_text: Mapped[str] = mapped_column(Text)
+    scope: Mapped[str] = mapped_column(String(24), default="shared")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+
+
+class PromptBlockStage(Base):
+    __tablename__ = "prompt_block_stages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    prompt_block_id: Mapped[int] = mapped_column(ForeignKey("prompt_blocks.id"))
+    stage_key: Mapped[str] = mapped_column(String(80), index=True)
+
+
+class GenerationFlow(Base):
+    __tablename__ = "generation_flows"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(140), unique=True)
+    description: Mapped[str] = mapped_column(Text, default="")
+    execution_mode: Mapped[str] = mapped_column(String(20), default="sequential")
+    default_settings: Mapped[dict] = mapped_column(JSON, default=dict)
+    context_rules: Mapped[dict] = mapped_column(JSON, default=dict)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+    stages: Mapped[list["FlowStage"]] = relationship(back_populates="flow", cascade="all, delete-orphan")
+
+
+class FlowStage(Base):
+    __tablename__ = "flow_stages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    flow_id: Mapped[int] = mapped_column(ForeignKey("generation_flows.id"), index=True)
+    stage_key: Mapped[str] = mapped_column(String(80))
+    stage_order: Mapped[int] = mapped_column(Integer)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    stage_params: Mapped[dict] = mapped_column(JSON, default=dict)
+    agent_ids: Mapped[list] = mapped_column(JSON, default=list)
+    prompt_block_ids: Mapped[list] = mapped_column(JSON, default=list)
+    context_sources: Mapped[list] = mapped_column(JSON, default=list)
+    flow: Mapped[GenerationFlow] = relationship(back_populates="stages")
+
+
+class Run(Base):
+    __tablename__ = "runs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    flow_id: Mapped[int | None] = mapped_column(ForeignKey("generation_flows.id"), nullable=True)
+    status: Mapped[str] = mapped_column(String(24), default="queued")
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    config: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
+class RunEvent(Base):
+    __tablename__ = "run_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    run_id: Mapped[int] = mapped_column(ForeignKey("runs.id"), index=True)
+    ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    event_type: Mapped[str] = mapped_column(String(40), default="log")
+    stage_key: Mapped[str] = mapped_column(String(80), default="system")
+    agent_name: Mapped[str] = mapped_column(String(120), default="system")
+    message: Mapped[str] = mapped_column(Text)
+
+
+class ConversationMessage(Base):
+    __tablename__ = "conversation_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    run_id: Mapped[int] = mapped_column(ForeignKey("runs.id"), index=True)
+    ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    stage_key: Mapped[str] = mapped_column(String(80))
+    agent_name: Mapped[str] = mapped_column(String(120))
+    role: Mapped[str] = mapped_column(String(40))
+    content: Mapped[str] = mapped_column(Text)
+
+
+class Element(Base):
+    __tablename__ = "elements"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    run_id: Mapped[int | None] = mapped_column(ForeignKey("runs.id"), nullable=True)
+    element_type: Mapped[str] = mapped_column(String(80), index=True)
+    name: Mapped[str] = mapped_column(String(200))
+    description: Mapped[str] = mapped_column(Text)
+    reasoning_for_choosing: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class HeadlineFormat(Base):
+    __tablename__ = "headline_formats"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    run_id: Mapped[int | None] = mapped_column(ForeignKey("runs.id"), nullable=True)
+    name: Mapped[str] = mapped_column(String(200))
+    blueprint: Mapped[str] = mapped_column(Text)
+    reasoning_for_choosing: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class Headline(Base):
+    __tablename__ = "headlines"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    run_id: Mapped[int | None] = mapped_column(ForeignKey("runs.id"), nullable=True)
+    headline: Mapped[str] = mapped_column(Text)
+    reasoning_for_choosing: Mapped[str] = mapped_column(Text, default="")
+    score: Mapped[float] = mapped_column(Float, default=0.0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
