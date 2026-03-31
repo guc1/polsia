@@ -4,314 +4,388 @@ import asyncio
 import json
 import threading
 from dataclasses import asdict
-from datetime import datetime, timezone
-from pathlib import Path
-from uuid import uuid4
 
 from dotenv import load_dotenv
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, Response, jsonify, render_template, request
+from sqlalchemy import select
 
-from app.agents import load_agents, save_agents
-from app.models import DEFAULT_STAGE_ORDER, RunConfig, RunLogEvent, RunState, Stage
-from app.pipeline import LOOP_DEFINITIONS, Pipeline
-from app.storage import (
-    STAGE_CSV_SCHEMAS,
-    append_stage_rows,
-    delete_csv_row,
-    list_csv_files,
-    load_saved_settings,
-    read_csv_table,
-    read_records,
-    save_named_settings,
-    update_csv_row,
+from app.models import (
+    Agent,
+    ConversationMessage,
+    FlowStage,
+    GenerationFlow,
+    Headline,
+    HeadlineFormat,
+    Persona,
+    PromptBlock,
+    PromptBlockStage,
+    Run,
+    RunEvent,
+    StageDefinition,
+    StageKey,
+    Element,
 )
+from app.pipeline import ELEMENT_GROUPS, run_pipeline_in_thread
+from app.platform_agent import propose_configuration
+from app.storage import init_db, session_scope
 
 load_dotenv()
 app = Flask(__name__)
-
-RUNS: dict[str, RunState] = {}
-RUN_EVENTS: dict[str, list[dict]] = {}
+init_db()
 
 
-PROMPT_STAGE_FILES = {
-    "element_generation": "element_generation.txt",
-    "story_format_generation": "story_format_generation.txt",
-    "headline_generation": "headline_generation.txt",
-    "headline_selection": "headline_generation.txt",
-    "hook_generation": "hook_generation.txt",
-    "story_planning": "story_planning.txt",
-    "story_writing": "story_writing.txt",
-    "short_script_writing": "short_script_writing.txt",
-    "video_headline_generation": "video_headline_generation.txt",
-    "caption_generation": "caption_generation.txt",
-}
-
-
-def prompt_paths_for_stage(stage: str) -> dict[str, Path]:
-    stage_file = PROMPT_STAGE_FILES.get(stage)
-    if not stage_file:
-        raise ValueError("invalid_stage")
-    return {
-        "system_prompt_template": Path("prompts/shared/base_system_prompt.txt"),
-        "task_prompt": Path("prompts/stages") / stage_file,
-        "feedback_prompt": Path("prompts/shared/feedback_prompt.txt"),
-        "decider_prompt": Path("prompts/shared/decider_prompt.txt"),
-        "board_prompt": Path("prompts/shared/board_prompt.txt"),
-    }
-
-
-
-STAGE_LABELS = {
-    "element_generation": "Elements",
-    "story_format_generation": "Headline Format",
-    "headline_generation": "Headline",
-    "headline_selection": "Headline Selection",
-    "hook_generation": "Hook",
-    "story_planning": "Story Planning",
-    "story_writing": "Story Writing",
-    "short_script_writing": "Short Script",
-    "video_headline_generation": "Video Headline",
-    "caption_generation": "Caption",
-}
-
-
-def stage_catalog() -> list[dict]:
-    items = []
-    for stage in DEFAULT_STAGE_ORDER:
-        loop = LOOP_DEFINITIONS[stage]
-        items.append(
-            {
-                "key": stage.value,
-                "label": STAGE_LABELS.get(stage.value, stage.value),
-                "loop_explanation": (
-                    f"Creators: {', '.join(loop.creator_agents) or 'none'} → "
-                    f"Reviewers: {', '.join(loop.reviewer_agents) or 'none'} → "
-                    f"Rewrite: {'yes' if loop.has_rewrite_round else 'no'} → "
-                    f"Decider: {'yes' if loop.has_decider else 'no'}"
-                ),
-                "agents": sorted(set(loop.creator_agents + loop.reviewer_agents + (["decider"] if loop.has_decider else []))),
-                "csv_key": f"data/{stage.value}.csv",
-                "csv_headers": STAGE_CSV_SCHEMAS.get(stage.value, []),
-            }
-        )
-    return items
-
-
-def add_event(event):
-    RUN_EVENTS.setdefault(event.run_id, []).append(asdict(event))
-
-
-def parse_run_config(payload: dict) -> RunConfig:
-    selected_raw = payload.get("selected_stages") or [s.value for s in DEFAULT_STAGE_ORDER]
-    alias = {"elements":"element_generation","format_types":"story_format_generation","headlines":"headline_generation","hook":"hook_generation","story_plan":"story_planning","story":"story_writing","script":"short_script_writing","video_text":"video_headline_generation"}
-    selected = [Stage(alias.get(s, s)) for s in selected_raw]
-    selected_element_types = payload.get("selected_element_types") or [
-        "main_characters",
-        "side_characters",
-        "locations",
-        "situations",
-        "protagonist_emotions",
-        "audience_emotions",
-        "absurd_situations",
-        "narrator_locations",
-    ]
-    return RunConfig(
-        selected_stages=selected,
-        mode=payload.get("mode", "sequential"),
-        model_map=payload.get("model_map", {}),
-        agent_model_map=payload.get("agent_model_map", {}),
-        temperature=float(payload.get("temperature", 0.7)),
-        max_context_chars=int(payload.get("max_context_chars", 12000)),
-        target_minutes=int(payload.get("target_minutes", 2)),
-        target_parts=int(payload.get("target_parts", 3)),
-        custom_instruction=payload.get("custom_instruction", ""),
-        enable_data_specialist=bool(payload.get("enable_data_specialist", True)),
-        enable_format_context=bool(payload.get("enable_format_context", True)),
-        output_count=int(payload.get("output_count", 3)),
-        selected_element_types=selected_element_types,
-        context_selection=payload.get("context_selection", {}),
-        existing_elements=payload.get("existing_elements", ""),
-        include_existing_elements=bool(payload.get("include_existing_elements", False)),
-    )
-
-
-def run_in_background(run_id: str):
-    pipeline = Pipeline(add_event)
-    run = RUNS[run_id]
-
-    async def _runner():
-        updated = await pipeline.execute(run)
-        RUNS[run_id] = updated
-
-    asyncio.run(_runner())
-
-
-@app.route("/")
+@app.get("/")
 def index():
-    return render_template("index.html", stage_values=[s.value for s in DEFAULT_STAGE_ORDER])
+    return render_template("index.html")
 
 
 @app.get("/api/bootstrap")
 def bootstrap():
-    return jsonify(
-        {
-            "agents": load_agents(),
-            "records": read_records(200),
-            "saved_settings": load_saved_settings(),
-            "runs": [asdict(r) for r in RUNS.values()],
-            "stage_order": [s.value for s in DEFAULT_STAGE_ORDER],
-            "stage_catalog": stage_catalog(),
-        }
-    )
+    with session_scope() as session:
+        flows = session.scalars(select(GenerationFlow).order_by(GenerationFlow.updated_at.desc())).all()
+        recent_runs = session.scalars(select(Run).order_by(Run.started_at.desc()).limit(20)).all()
+        return jsonify(
+            {
+                "stages": [
+                    {"key": s.key, "name": s.name, "part": s.part, "description": s.description}
+                    for s in session.scalars(select(StageDefinition)).all()
+                ],
+                "flows": [
+                    {"id": f.id, "name": f.name, "description": f.description, "execution_mode": f.execution_mode}
+                    for f in flows
+                ],
+                "recent_runs": [
+                    {"id": r.id, "flow_id": r.flow_id, "status": r.status, "started_at": r.started_at.isoformat()}
+                    for r in recent_runs
+                ],
+            }
+        )
 
 
-@app.post("/api/run")
-def start_run():
+@app.get("/api/personas")
+def list_personas():
+    with session_scope() as session:
+        return jsonify([
+            {"id": p.id, "name": p.name, "description": p.description, "persona_text": p.persona_text}
+            for p in session.scalars(select(Persona)).all()
+        ])
+
+
+@app.post("/api/personas")
+def save_persona():
     payload = request.json or {}
-    cfg = parse_run_config(payload)
-    run_id = str(uuid4())
-    run = RunState(run_id=run_id, config=cfg)
-    RUNS[run_id] = run
-    RUN_EVENTS[run_id] = []
-    thread = threading.Thread(target=run_in_background, args=(run_id,), daemon=True)
-    thread.start()
-    return jsonify({"run_id": run_id})
-
-
-@app.get("/api/runs")
-def list_runs():
-    return jsonify([asdict(r) for r in sorted(RUNS.values(), key=lambda x: x.created_at, reverse=True)])
-
-
-@app.get("/api/runs/<run_id>")
-def get_run(run_id: str):
-    run = RUNS.get(run_id)
-    if not run:
-        return jsonify({"error": "not_found"}), 404
-    return jsonify({"run": asdict(run), "events": RUN_EVENTS.get(run_id, [])})
+    with session_scope() as session:
+        pid = payload.get("id")
+        persona = session.get(Persona, pid) if pid else Persona()
+        persona.name = payload.get("name", persona.name)
+        persona.description = payload.get("description", "")
+        persona.persona_text = payload.get("persona_text", "")
+        session.add(persona)
+        session.commit()
+        return jsonify({"ok": True, "id": persona.id})
 
 
 @app.get("/api/agents")
-def get_agents():
-    return jsonify(load_agents())
+def list_agents():
+    with session_scope() as session:
+        return jsonify([
+            {
+                "id": a.id,
+                "name": a.name,
+                "role": a.role,
+                "is_active": a.is_active,
+                "model": a.model,
+                "persona_id": a.persona_id,
+                "override_prompt": a.override_prompt,
+            }
+            for a in session.scalars(select(Agent)).all()
+        ])
 
 
 @app.post("/api/agents")
-def set_agents():
+def save_agent():
     payload = request.json or {}
-    save_agents(payload)
-    return jsonify({"ok": True})
+    with session_scope() as session:
+        aid = payload.get("id")
+        agent = session.get(Agent, aid) if aid else Agent()
+        for field in ["name", "role", "model", "override_prompt", "persona_id"]:
+            if field in payload:
+                setattr(agent, field, payload[field])
+        if "is_active" in payload:
+            agent.is_active = bool(payload["is_active"])
+        session.add(agent)
+        session.commit()
+        return jsonify({"ok": True, "id": agent.id})
 
 
-@app.post("/api/settings/<name>")
-def save_setting(name: str):
+@app.get("/api/prompt-blocks")
+def list_prompt_blocks():
+    with session_scope() as session:
+        refs = session.scalars(select(PromptBlockStage)).all()
+        stage_map = {}
+        for ref in refs:
+            stage_map.setdefault(ref.prompt_block_id, []).append(ref.stage_key)
+        return jsonify([
+            {
+                "id": b.id,
+                "name": b.name,
+                "description_for_agent": b.description_for_agent,
+                "prompt_text": b.prompt_text,
+                "scope": b.scope,
+                "is_active": b.is_active,
+                "version": b.version,
+                "stage_keys": stage_map.get(b.id, []),
+            }
+            for b in session.scalars(select(PromptBlock)).all()
+        ])
+
+
+@app.post("/api/prompt-blocks")
+def save_prompt_block():
     payload = request.json or {}
-    save_named_settings(name, payload)
-    return jsonify({"ok": True})
+    with session_scope() as session:
+        bid = payload.get("id")
+        block = session.get(PromptBlock, bid) if bid else PromptBlock()
+        block.name = payload.get("name", block.name)
+        block.description_for_agent = payload.get("description_for_agent", "")
+        block.prompt_text = payload.get("prompt_text", "")
+        block.scope = payload.get("scope", "shared")
+        block.is_active = bool(payload.get("is_active", True))
+        if bid:
+            block.version += 1
+        session.add(block)
+        session.flush()
+        session.query(PromptBlockStage).filter(PromptBlockStage.prompt_block_id == block.id).delete()
+        for stage_key in payload.get("stage_keys", []):
+            session.add(PromptBlockStage(prompt_block_id=block.id, stage_key=stage_key))
+        session.commit()
+        return jsonify({"ok": True, "id": block.id})
 
 
-@app.get("/api/csv/files")
-def get_csv_files():
-    return jsonify({"files": list_csv_files()})
+@app.post("/api/prompt-blocks/<int:block_id>/duplicate")
+def duplicate_prompt_block(block_id: int):
+    with session_scope() as session:
+        block = session.get(PromptBlock, block_id)
+        if not block:
+            return jsonify({"error": "not_found"}), 404
+        clone = PromptBlock(
+            name=f"{block.name} (copy)",
+            description_for_agent=block.description_for_agent,
+            prompt_text=block.prompt_text,
+            scope=block.scope,
+            is_active=block.is_active,
+        )
+        session.add(clone)
+        session.commit()
+        return jsonify({"ok": True, "id": clone.id})
 
 
-@app.get("/api/csv/table")
-def get_csv_table():
-    file_key = request.args.get("file", "")
-    try:
-        table = read_csv_table(file_key)
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 400
-    return jsonify(table)
+@app.get("/api/flows")
+def list_flows():
+    with session_scope() as session:
+        flows = session.scalars(select(GenerationFlow)).all()
+        data = []
+        for flow in flows:
+            data.append(
+                {
+                    "id": flow.id,
+                    "name": flow.name,
+                    "description": flow.description,
+                    "execution_mode": flow.execution_mode,
+                    "default_settings": flow.default_settings,
+                    "context_rules": flow.context_rules,
+                    "stages": [
+                        {
+                            "id": s.id,
+                            "stage_key": s.stage_key,
+                            "stage_order": s.stage_order,
+                            "enabled": s.enabled,
+                            "stage_params": s.stage_params,
+                            "agent_ids": s.agent_ids,
+                            "prompt_block_ids": s.prompt_block_ids,
+                            "context_sources": s.context_sources,
+                        }
+                        for s in sorted(flow.stages, key=lambda x: x.stage_order)
+                    ],
+                }
+            )
+        return jsonify(data)
 
 
-@app.put("/api/csv/table/row")
-def put_csv_row():
+@app.post("/api/flows")
+def save_flow():
     payload = request.json or {}
-    file_key = payload.get("file", "")
-    row_index = int(payload.get("row_index", -1))
-    row = payload.get("row", {}) or {}
-    try:
-        update_csv_row(file_key, row_index, row)
-        updated = read_csv_table(file_key)
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 400
-    except IndexError as e:
-        return jsonify({"error": str(e)}), 404
-    return jsonify({"ok": True, **updated})
+    with session_scope() as session:
+        fid = payload.get("id")
+        flow = session.get(GenerationFlow, fid) if fid else GenerationFlow()
+        flow.name = payload.get("name", flow.name)
+        flow.description = payload.get("description", "")
+        flow.execution_mode = payload.get("execution_mode", "sequential")
+        flow.default_settings = payload.get("default_settings", {})
+        flow.context_rules = payload.get("context_rules", {})
+        session.add(flow)
+        session.flush()
+        session.query(FlowStage).filter(FlowStage.flow_id == flow.id).delete()
+        for stage in payload.get("stages", []):
+            session.add(
+                FlowStage(
+                    flow_id=flow.id,
+                    stage_key=stage["stage_key"],
+                    stage_order=stage.get("stage_order", 0),
+                    enabled=bool(stage.get("enabled", True)),
+                    stage_params=stage.get("stage_params", {}),
+                    agent_ids=stage.get("agent_ids", []),
+                    prompt_block_ids=stage.get("prompt_block_ids", []),
+                    context_sources=stage.get("context_sources", []),
+                )
+            )
+        session.commit()
+        return jsonify({"ok": True, "id": flow.id})
 
 
-@app.delete("/api/csv/table/row")
-def remove_csv_row():
+@app.post("/api/flows/<int:flow_id>/duplicate")
+def duplicate_flow(flow_id: int):
+    with session_scope() as session:
+        flow = session.get(GenerationFlow, flow_id)
+        if not flow:
+            return jsonify({"error": "not_found"}), 404
+        new_flow = GenerationFlow(
+            name=f"{flow.name} (copy)",
+            description=flow.description,
+            execution_mode=flow.execution_mode,
+            default_settings=flow.default_settings,
+            context_rules=flow.context_rules,
+        )
+        session.add(new_flow)
+        session.flush()
+        for s in flow.stages:
+            session.add(
+                FlowStage(
+                    flow_id=new_flow.id,
+                    stage_key=s.stage_key,
+                    stage_order=s.stage_order,
+                    enabled=s.enabled,
+                    stage_params=s.stage_params,
+                    agent_ids=s.agent_ids,
+                    prompt_block_ids=s.prompt_block_ids,
+                    context_sources=s.context_sources,
+                )
+            )
+        session.commit()
+        return jsonify({"ok": True, "id": new_flow.id})
+
+
+@app.delete("/api/flows/<int:flow_id>")
+def delete_flow(flow_id: int):
+    with session_scope() as session:
+        flow = session.get(GenerationFlow, flow_id)
+        if not flow:
+            return jsonify({"error": "not_found"}), 404
+        session.delete(flow)
+        session.commit()
+        return jsonify({"ok": True})
+
+
+@app.post("/api/runs")
+def start_run():
     payload = request.json or {}
-    file_key = payload.get("file", "")
-    row_index = int(payload.get("row_index", -1))
-    try:
-        delete_csv_row(file_key, row_index)
-        updated = read_csv_table(file_key)
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 400
-    except IndexError as e:
-        return jsonify({"error": str(e)}), 404
-    return jsonify({"ok": True, **updated})
+    with session_scope() as session:
+        run = Run(flow_id=payload.get("flow_id"), config=payload.get("config", {}), status="queued")
+        session.add(run)
+        session.commit()
+        rid = run.id
+    thread = threading.Thread(target=run_pipeline_in_thread, args=(session_scope, rid), daemon=True)
+    thread.start()
+    return jsonify({"run_id": rid})
 
 
-@app.get("/api/prompts/<stage>")
-def get_stage_prompts(stage: str):
-    try:
-        prompt_files = prompt_paths_for_stage(stage)
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 400
+@app.get("/api/runs/<int:run_id>")
+def run_detail(run_id: int):
+    with session_scope() as session:
+        run = session.get(Run, run_id)
+        if not run:
+            return jsonify({"error": "not_found"}), 404
+        events = session.scalars(select(RunEvent).where(RunEvent.run_id == run_id).order_by(RunEvent.id)).all()
+        chats = session.scalars(select(ConversationMessage).where(ConversationMessage.run_id == run_id).order_by(ConversationMessage.id)).all()
+        return jsonify(
+            {
+                "run": {"id": run.id, "status": run.status, "flow_id": run.flow_id},
+                "events": [
+                    {
+                        "id": e.id,
+                        "ts": e.ts.isoformat(),
+                        "event_type": e.event_type,
+                        "stage_key": e.stage_key,
+                        "agent_name": e.agent_name,
+                        "message": e.message,
+                    }
+                    for e in events
+                ],
+                "conversation": [
+                    {
+                        "id": c.id,
+                        "ts": c.ts.isoformat(),
+                        "stage_key": c.stage_key,
+                        "agent_name": c.agent_name,
+                        "role": c.role,
+                        "content": c.content,
+                    }
+                    for c in chats
+                ],
+            }
+        )
 
-    payload = {}
-    for key, rel_path in prompt_files.items():
-        full = Path(app.root_path).parent / rel_path
-        payload[key] = full.read_text(encoding="utf-8") if full.exists() else ""
-    return jsonify(payload)
+
+@app.get("/api/database/content")
+def database_content():
+    with session_scope() as session:
+        return jsonify(
+            {
+                "elements": [
+                    {
+                        "id": e.id,
+                        "element_type": e.element_type,
+                        "name": e.name,
+                        "description": e.description,
+                        "reasoning_for_choosing": e.reasoning_for_choosing,
+                        "created_at": e.created_at.isoformat(),
+                    }
+                    for e in session.scalars(select(Element).order_by(Element.id.desc()).limit(100)).all()
+                ],
+                "headline_formats": [
+                    {
+                        "id": f.id,
+                        "name": f.name,
+                        "blueprint": f.blueprint,
+                        "reasoning_for_choosing": f.reasoning_for_choosing,
+                        "created_at": f.created_at.isoformat(),
+                    }
+                    for f in session.scalars(select(HeadlineFormat).order_by(HeadlineFormat.id.desc()).limit(100)).all()
+                ],
+                "headlines": [
+                    {
+                        "id": h.id,
+                        "headline": h.headline,
+                        "reasoning_for_choosing": h.reasoning_for_choosing,
+                        "score": h.score,
+                        "created_at": h.created_at.isoformat(),
+                    }
+                    for h in session.scalars(select(Headline).order_by(Headline.id.desc()).limit(100)).all()
+                ],
+            }
+        )
 
 
-@app.post("/api/prompts/<stage>")
-def save_stage_prompts(stage: str):
-    body = request.json or {}
-    try:
-        prompt_files = prompt_paths_for_stage(stage)
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 400
-
-    for key, rel_path in prompt_files.items():
-        if key not in body:
-            continue
-        full = Path(app.root_path).parent / rel_path
-        full.write_text(str(body[key]), encoding="utf-8")
-    return jsonify({"ok": True})
-
-
-@app.post("/api/runs/<run_id>/db-update")
-def db_update(run_id: str):
+@app.post("/api/platform-agent/propose")
+def platform_propose():
     payload = request.json or {}
-    stage = payload.get("stage", "")
-    action = payload.get("action", "confirm")
-    rows = payload.get("rows", []) or []
+    intent = payload.get("intent", "")
 
-    run = RUNS.get(run_id)
-    if not run:
-        return jsonify({"error": "not_found"}), 404
-    if stage not in run.pending_updates:
-        return jsonify({"error": "stage_not_pending"}), 400
+    async def _run():
+        with session_scope() as session:
+            return await propose_configuration(session, intent)
 
-    if action in {"confirm", "edit_submit"}:
-        append_stage_rows(stage, rows)
-        run.pending_updates[stage]["status"] = "saved"
-        run.pending_updates[stage]["rows"] = rows
-        add_event(RunLogEvent(run_id=run_id, stage=stage, agent="storage", role="save_update", message=f"saved rows={len(rows)} to data/{stage}.csv"))
-        return jsonify({"ok": True, "status": "saved"})
-
-    if action == "cancel":
-        run.pending_updates[stage]["status"] = "rejected"
-        add_event(RunLogEvent(run_id=run_id, stage=stage, agent="storage", role="save_update", message="pending update rejected"))
-        return jsonify({"ok": True, "status": "rejected"})
-
-    return jsonify({"error": "invalid_action"}), 400
+    return jsonify(asyncio.run(_run()))
 
 
 if __name__ == "__main__":

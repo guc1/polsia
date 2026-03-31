@@ -1,244 +1,122 @@
 <!doctype html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Stage-first Agentic Studio</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <meta charset="utf-8" />
+  <title>Polsia Platform - Part A</title>
   <style>
-    body { background:#f6f8fc; }
-    .shell { max-width: 1350px; margin: 20px auto; padding: 0 12px; }
-    .card-soft { border:1px solid #dbe3ef; border-radius:14px; background:#fff; box-shadow:0 6px 20px rgba(15,23,42,.04); }
-    .stage-grid { display:grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap:12px; }
-    .stage-tile { padding:16px; cursor:pointer; }
-    .panel-title { font-size:.95rem; font-weight:700; margin-bottom:8px; }
-    .logs { height:72vh; overflow:auto; background:#090f1f; color:#dbeafe; border-radius:12px; padding:10px; font-family: ui-monospace, monospace; font-size:.8rem; white-space:pre-wrap; }
-    .chat { height:72vh; overflow:auto; background:#eff6ff; border-radius:12px; padding:12px; }
-    .bubble { background:#fff; border-left:4px solid #6366f1; border:1px solid #c7d2fe; border-radius:10px; padding:10px; margin-bottom:10px; white-space:pre-wrap; }
-    .mono { font-family: ui-monospace, monospace; white-space:pre-wrap; }
-    .hidden { display:none; }
+    body { font-family: Inter, Arial, sans-serif; margin: 0; background: #0f1115; color: #e9eef5; }
+    .wrap { padding: 18px; display: grid; gap: 14px; }
+    .card { background: #171b22; border: 1px solid #2b3442; border-radius: 12px; padding: 12px; }
+    button { background: #4f8cff; color: white; border: none; border-radius: 8px; padding: 8px 10px; margin-right: 6px; }
+    input, textarea, select { width: 100%; background: #0f1115; color: #e9eef5; border: 1px solid #2b3442; border-radius: 8px; padding: 8px; margin: 6px 0; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .run { display:grid; grid-template-columns: 1fr 1fr; gap:12px; max-height: 420px; }
+    .pane { overflow: auto; white-space: pre-wrap; background:#10151d; border-radius:8px; padding: 8px; border: 1px solid #2b3442; }
+    .small { font-size: 12px; color: #95a2b5; }
   </style>
 </head>
 <body>
-<div class="shell">
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="mb-0">Project Viral • Stage-first Workspace</h4>
-    <button class="btn btn-sm btn-outline-secondary" id="homeBtn">Home</button>
+  <div class="wrap">
+    <div class="card">
+      <h2>Home: Create or Load Generation Flow</h2>
+      <div id="flowList"></div>
+    </div>
+
+    <div class="card grid2">
+      <div>
+        <h3>Create / Edit Flow</h3>
+        <input id="flowId" placeholder="flow id for edit (optional)" />
+        <input id="flowName" placeholder="flow name" />
+        <textarea id="flowDesc" placeholder="description"></textarea>
+        <select id="execMode"><option>sequential</option><option>parallel</option><option>mixed</option></select>
+        <textarea id="flowStages" rows="8">[
+  {"stage_key":"elements","stage_order":1,"enabled":true,"stage_params":{"element_groups":["main_characters","locations","situations"],"count_per_group":2}},
+  {"stage_key":"headline_formats","stage_order":2,"enabled":true,"stage_params":{"format_count":3}},
+  {"stage_key":"headlines","stage_order":3,"enabled":true,"stage_params":{"headline_count":5,"context_mode":"elements+formats"}}
+]</textarea>
+        <button onclick="saveFlow()">Save Flow</button>
+      </div>
+      <div>
+        <h3>Quick Access</h3>
+        <button onclick="loadEntities()">Prompt Blocks / Agents / Personas</button>
+        <button onclick="loadDb()">Database Inspection</button>
+        <textarea id="entities" rows="18" placeholder="Entity inspector output"></textarea>
+      </div>
+    </div>
+
+    <div class="card grid2">
+      <div>
+        <h3>Platform Agent Assistant</h3>
+        <textarea id="intent" rows="4" placeholder="Describe the flow and setup you want"></textarea>
+        <button onclick="askPlatformAgent()">Suggest Configuration</button>
+        <textarea id="platformResponse" rows="14"></textarea>
+      </div>
+      <div>
+        <h3>Run Flow</h3>
+        <input id="runFlowId" placeholder="flow id" />
+        <button onclick="startRun()">Run</button>
+        <p class="small">Live monitor has raw logs on left and full agent conversations on right.</p>
+        <div class="run">
+          <div class="pane" id="logsPane"></div>
+          <div class="pane" id="chatPane"></div>
+        </div>
+      </div>
+    </div>
   </div>
-
-  <section id="homeView" class="card-soft p-3">
-    <div class="mb-2 text-muted">Select a generation part.</div>
-    <div id="homeStageGrid" class="stage-grid"></div>
-  </section>
-
-  <section id="stageView" class="hidden">
-    <div class="card-soft p-3 mb-3">
-      <div class="d-flex justify-content-between align-items-center">
-        <h5 id="stageTitle" class="mb-0"></h5>
-        <span class="text-muted" id="stageCsvMeta"></span>
-      </div>
-    </div>
-
-    <div class="row g-3">
-      <div class="col-lg-4">
-        <div class="card-soft p-3 mb-3">
-          <div class="panel-title">A) Agent Panel</div>
-          <div id="agentList" class="mb-2"></div>
-          <button id="addAgentBtn" class="btn btn-sm btn-outline-primary">Add Agent</button>
-        </div>
-
-        <div class="card-soft p-3 mb-3">
-          <div class="panel-title">B) Loop Explanation</div>
-          <div id="loopText" class="mono small"></div>
-        </div>
-
-        <div class="card-soft p-3 mb-3">
-          <div class="panel-title">D) General Settings</div>
-          <label class="form-label small">Model</label><input id="model" class="form-control form-control-sm" value="openai/gpt-4o-mini"/>
-          <div class="row g-2 mt-1">
-            <div class="col-6"><label class="form-label small">Temperature</label><input id="temperature" type="number" step="0.1" class="form-control form-control-sm" value="0.7"/></div>
-            <div class="col-6"><label class="form-label small">Max tokens/chars</label><input id="max_context_chars" type="number" class="form-control form-control-sm" value="12000"/></div>
-          </div>
-          <div class="row g-2 mt-1">
-            <div class="col-6"><label class="form-label small">Mode</label><select id="mode" class="form-select form-select-sm"><option value="sequential">Sequential</option><option value="parallel">Parallel</option></select></div>
-            <div class="col-6"><label class="form-label small">Outputs</label><input id="output_count" type="number" class="form-control form-control-sm" value="3"/></div>
-          </div>
-          <textarea id="custom_instruction" class="form-control form-control-sm mt-2" rows="3" placeholder="Custom instruction"></textarea>
-        </div>
-      </div>
-
-      <div class="col-lg-8">
-        <div class="card-soft p-3 mb-3">
-          <div class="panel-title">C) Prompt Editor</div>
-          <div class="row g-2">
-            <div class="col-6"><label class="small">System</label><textarea id="prompt_system" class="form-control form-control-sm mono" rows="5"></textarea></div>
-            <div class="col-6"><label class="small">Task</label><textarea id="prompt_task" class="form-control form-control-sm mono" rows="5"></textarea></div>
-            <div class="col-6"><label class="small">Feedback</label><textarea id="prompt_feedback" class="form-control form-control-sm mono" rows="5"></textarea></div>
-            <div class="col-6"><label class="small">Decider</label><textarea id="prompt_decider" class="form-control form-control-sm mono" rows="5"></textarea></div>
-            <div class="col-12"><label class="small">Board</label><textarea id="prompt_board" class="form-control form-control-sm mono" rows="4"></textarea></div>
-          </div>
-          <button id="savePromptsBtn" class="btn btn-sm btn-outline-primary mt-2">Save prompts</button>
-        </div>
-
-        <div class="card-soft p-3 mb-3">
-          <div class="panel-title">E) Database Inspection (CSV)</div>
-          <div id="csvBox" class="mono small" style="max-height:220px;overflow:auto;"></div>
-        </div>
-
-        <div class="card-soft p-3 mb-3">
-          <div class="panel-title">F) Context Selection</div>
-          <div id="contextChecks" class="d-flex gap-3 flex-wrap"></div>
-        </div>
-
-        <div class="card-soft p-3">
-          <div class="panel-title">G) Run</div>
-          <button id="runStageBtn" class="btn btn-primary">Run this stage only</button>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section id="runView" class="hidden">
-    <div class="card-soft p-3 mb-3 d-flex justify-content-between align-items-center">
-      <h5 class="mb-0" id="runTitle"></h5>
-      <span id="runStatus" class="text-muted"></span>
-    </div>
-    <div class="row g-3">
-      <div class="col-lg-6"><div class="panel-title">Raw Terminal Logs</div><div id="logs" class="logs">No logs yet.</div></div>
-      <div class="col-lg-6"><div class="panel-title">Agent Conversation</div><div id="chat" class="chat"></div></div>
-    </div>
-  </section>
-</div>
-
-<div class="modal fade" id="dbModal" tabindex="-1">
-  <div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content">
-    <div class="modal-header"><h5 class="modal-title">Updated DB</h5></div>
-    <div class="modal-body">
-      <p class="small text-muted">Review exactly what will be written.</p>
-      <textarea id="dbRowsEditor" class="form-control mono" rows="18"></textarea>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline-danger" id="rejectDbBtn">Cancel / Reject</button>
-      <button class="btn btn-outline-primary" id="editSubmitDbBtn">Edit and submit</button>
-      <button class="btn btn-primary" id="confirmDbBtn">Confirm</button>
-    </div>
-  </div></div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-let bootstrapData = null, currentStage = null, currentRunId = null, currentPendingRows = [];
-let agents = {};
-const contextSources = ["existing_elements","story_formats","previous_headlines","previous_hooks","custom_instruction","analytics"];
+let currentRun = null;
 
-async function j(url,opt={}){ const r = await fetch(url,opt); return r.json(); }
-const $ = (id)=>document.getElementById(id);
-const show = (view)=>["homeView","stageView","runView"].forEach(v=>$(v).classList.toggle('hidden',v!==view));
-const esc = (s)=>String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+async function j(url, opts={}) { return (await fetch(url, {headers:{'content-type':'application/json'}, ...opts})).json(); }
 
-function renderHome(){
-  $("homeStageGrid").innerHTML = bootstrapData.stage_catalog.map(s=>`<div class="card-soft stage-tile" data-stage="${s.key}"><strong>${s.label}</strong><div class="small text-muted mt-1">${s.key}</div></div>`).join('');
+async function loadHome() {
+  const b = await j('/api/bootstrap');
+  document.getElementById('flowList').innerText = JSON.stringify(b, null, 2);
 }
 
-function renderAgents(stageMeta){
-  const html = stageMeta.agents.map(a=>`<div class="form-check"><input class="form-check-input agent-toggle" type="checkbox" data-agent="${a}" checked><label class="form-check-label">${a}</label></div>`).join('');
-  $("agentList").innerHTML = html || '<span class="text-muted small">No agents listed.</span>';
-}
-
-async function openStage(stageKey){
-  currentStage = stageKey;
-  const meta = bootstrapData.stage_catalog.find(s=>s.key===stageKey);
-  $("stageTitle").textContent = `${meta.label} Workspace (${meta.key})`;
-  $("stageCsvMeta").textContent = meta.csv_key;
-  $("loopText").textContent = meta.loop_explanation;
-  renderAgents(meta);
-  $("contextChecks").innerHTML = contextSources.map(c=>`<div class="form-check"><input class="form-check-input ctx" type="checkbox" value="${c}"><label class="form-check-label small">${c}</label></div>`).join('');
-
-  const prompts = await j(`/api/prompts/${stageKey}`);
-  $("prompt_system").value = prompts.system_prompt_template || '';
-  $("prompt_task").value = prompts.task_prompt || '';
-  $("prompt_feedback").value = prompts.feedback_prompt || '';
-  $("prompt_decider").value = prompts.decider_prompt || '';
-  $("prompt_board").value = prompts.board_prompt || '';
-
-  const table = await j(`/api/csv/table?file=${encodeURIComponent(meta.csv_key)}`);
-  $("csvBox").textContent = table.error ? table.error : JSON.stringify(table.rows || [], null, 2);
-  show('stageView');
-}
-
-async function runCurrentStage(){
-  const model_map = {}; model_map[currentStage] = $("model").value;
-  const context_selection = {}; context_selection[currentStage] = {
-    include_sources: [...document.querySelectorAll('.ctx:checked')].map(x=>x.value),
-    manual_ids: [], run_standalone: false,
-  };
+async function saveFlow() {
   const payload = {
-    selected_stages:[currentStage], mode:$("mode").value, output_count:Number($("output_count").value),
-    temperature:Number($("temperature").value), max_context_chars:Number($("max_context_chars").value),
-    custom_instruction:$("custom_instruction").value, model_map, context_selection,
-    agent_model_map:{}, enable_data_specialist:true, enable_format_context:true
+    id: document.getElementById('flowId').value ? Number(document.getElementById('flowId').value) : undefined,
+    name: document.getElementById('flowName').value,
+    description: document.getElementById('flowDesc').value,
+    execution_mode: document.getElementById('execMode').value,
+    stages: JSON.parse(document.getElementById('flowStages').value)
   };
-  const res = await j('/api/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-  currentRunId = res.run_id;
-  $("runTitle").textContent = `Run screen • ${currentStage}`;
-  show('runView');
-  refreshRun();
+  const res = await j('/api/flows', {method:'POST', body: JSON.stringify(payload)});
+  alert('saved flow ' + res.id);
+  await loadHome();
 }
 
-async function refreshRun(){
-  if(!currentRunId) return;
-  const data = await j(`/api/runs/${currentRunId}`);
-  $("runStatus").textContent = data.run.status;
-  const events = data.events || [];
-  $("logs").innerHTML = events.map(e=>`[${esc(e.ts)}] (${esc(e.stage)}) ${esc(e.agent)}/${esc(e.role)}\n${esc(e.message)}\n`).join('\n');
-  const convo = events.filter(e=>['system_prompt','user_prompt','output'].includes(e.role));
-  $("chat").innerHTML = convo.map(e=>`<div class="bubble"><div class="small text-muted">${esc(e.agent)} • ${esc(e.role)}</div>${esc(e.message)}</div>`).join('');
-
-  const pending = (data.run.pending_updates || {})[currentStage];
-  if (data.run.status === 'completed' && pending && pending.status === 'pending_confirmation') {
-    currentPendingRows = pending.rows || [];
-    $("dbRowsEditor").value = JSON.stringify(currentPendingRows, null, 2);
-    bootstrap.Modal.getOrCreateInstance($("dbModal")).show();
-  }
-  if (data.run.status === 'running') setTimeout(refreshRun, 2500);
+async function loadEntities() {
+  const [agents, personas, blocks] = await Promise.all([j('/api/agents'), j('/api/personas'), j('/api/prompt-blocks')]);
+  document.getElementById('entities').value = JSON.stringify({agents, personas, blocks}, null, 2);
 }
 
-async function savePrompts(){
-  await j(`/api/prompts/${currentStage}`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-    system_prompt_template: $("prompt_system").value, task_prompt: $("prompt_task").value,
-    feedback_prompt: $("prompt_feedback").value, decider_prompt: $("prompt_decider").value, board_prompt: $("prompt_board").value,
-  })});
-  alert('Prompts saved');
+async function loadDb() {
+  const db = await j('/api/database/content');
+  document.getElementById('entities').value = JSON.stringify(db, null, 2);
 }
 
-async function submitDb(action){
-  let rows = currentPendingRows;
-  if (action === 'edit_submit') {
-    try { rows = JSON.parse($("dbRowsEditor").value || '[]'); } catch { alert('Invalid JSON edits'); return; }
-  }
-  await j(`/api/runs/${currentRunId}/db-update`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({stage:currentStage, action, rows})});
-  bootstrap.Modal.getOrCreateInstance($("dbModal")).hide();
-  await openStage(currentStage);
+async function askPlatformAgent() {
+  const res = await j('/api/platform-agent/propose', {method:'POST', body: JSON.stringify({intent: document.getElementById('intent').value})});
+  document.getElementById('platformResponse').value = JSON.stringify(res, null, 2);
 }
 
-async function init(){
-  bootstrapData = await j('/api/bootstrap');
-  agents = bootstrapData.agents || {};
-  renderHome();
+async function startRun() {
+  const flowId = Number(document.getElementById('runFlowId').value);
+  const r = await j('/api/runs', {method:'POST', body: JSON.stringify({flow_id: flowId})});
+  currentRun = r.run_id;
+  pollRun();
 }
 
-document.addEventListener('click', (e)=>{
-  const tile = e.target.closest('.stage-tile');
-  if (tile) openStage(tile.dataset.stage);
-});
-$("runStageBtn").onclick = runCurrentStage;
-$("homeBtn").onclick = ()=>show('homeView');
-$("savePromptsBtn").onclick = savePrompts;
-$("confirmDbBtn").onclick = ()=>submitDb('confirm');
-$("editSubmitDbBtn").onclick = ()=>submitDb('edit_submit');
-$("rejectDbBtn").onclick = ()=>submitDb('cancel');
-$("addAgentBtn").onclick = ()=>alert('Use data/agents.json or extend API to define full new agent profile.');
-init();
+async function pollRun() {
+  if (!currentRun) return;
+  const data = await j(`/api/runs/${currentRun}`);
+  document.getElementById('logsPane').innerText = data.events.map(e=>`[${e.ts}] ${e.stage_key}/${e.agent_name}: ${e.message}`).join('\n\n');
+  document.getElementById('chatPane').innerText = data.conversation.map(c=>`[${c.ts}] ${c.stage_key} | ${c.agent_name} | ${c.role}\n${c.content}`).join('\n\n----------------\n\n');
+  if (data.run.status !== 'completed') setTimeout(pollRun, 1200);
+}
+
+loadHome();
 </script>
 </body>
 </html>

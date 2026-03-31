@@ -1,53 +1,67 @@
-# Local Repository Cheat Sheet
+# Local Developer / Operator Cheat Sheet
 
-## 1) Clone and run
-
+## Clone
 ```bash
-git clone <YOUR_REPO_URL>
+git clone <your-repo-url>
 cd polsia
+```
+
+## Install dependencies
+```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env
-# add OPENROUTER_API_KEY to .env
+```
+
+## Run app locally
+```bash
+python main.py
+```
+Open `http://localhost:4000`.
+
+## Database setup
+Default uses SQLite at `data/platform.db` (auto-created). No Docker required for default setup.
+
+### Optional PostgreSQL later
+Set:
+```bash
+export DATABASE_URL='postgresql+psycopg://user:pass@localhost:5432/polsia'
+```
+Then start app; schema tables auto-create at startup.
+
+## Docker usage
+No Docker is required for local default mode.
+If you want containerized PostgreSQL, use your preferred compose stack and set `DATABASE_URL` accordingly.
+
+## Migrations
+Current baseline uses SQLAlchemy `create_all` for frictionless bootstrapping.
+If introducing Alembic later, create migration scripts before team rollout.
+
+## Create a branch
+```bash
+git checkout -b feat/part-a-platform
+```
+
+## Commit
+```bash
+git add .
+git commit -m "Rebuild platform around Part A SQL architecture"
+```
+
+## Open a PR
+```bash
+git push -u origin feat/part-a-platform
+# then open PR in your Git host UI
+```
+
+## Run tests/checks
+```bash
+python -m compileall main.py app
 python main.py
 ```
 
-Open: `http://localhost:4000`
-
-## 2) Daily git workflow
-
+## Reset local database
 ```bash
-git checkout -b feat/your-branch-name
-# edit files
-git status
-git add .
-git commit -m "feat: describe your change"
-git push -u origin feat/your-branch-name
-```
-
-## 3) Create a PR on GitHub
-
-### Option A: GitHub UI
-
-1. Push your branch.
-2. Open your repository on GitHub.
-3. Click **Compare & pull request**.
-4. Fill title + description.
-5. Create PR.
-
-### Option B: GitHub CLI
-
-```bash
-gh auth login
-gh pr create --fill
-```
-
-## 4) Sync latest main
-
-```bash
-git checkout main
-git pull origin main
-git checkout feat/your-branch-name
-git rebase main
+rm -f data/platform.db
+python main.py
 ```
